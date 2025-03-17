@@ -1,0 +1,47 @@
+{
+    "timeline": [
+      {
+        "id": "1",
+        "author": {
+          "name": "John Doe",
+          "username": "johndoe",
+          "avatar": "/avatars/john.jpg"
+        },
+        "content": "Je viens de lancer mon nouveau projet ! 🚀",
+        "date": "2024-03-14T15:30:00Z",
+        "likes": 42,
+        "reposts": 12,
+        "replies": 5
+      },
+      {
+        "id": "2",
+        "author": {
+          "name": "Alice Smith",
+          "username": "alicedev",
+          "avatar": "/avatars/alice.jpg"
+        },
+        "content": "Le développement web en 2024 est passionnant ! Voici mon dernier article sur les nouvelles technologies #webdev",
+        "date": "2024-03-14T14:20:00Z",
+        "likes": 128,
+        "reposts": 34,
+        "replies": 15,
+        "media": {
+          "type": "image",
+          "url": "/images/webdev-article.jpg"
+        }
+      },
+      {
+        "id": "3",
+        "author": {
+          "name": "Tech News",
+          "username": "technews",
+          "avatar": "/avatars/technews.jpg"
+        },
+        "content": "Breaking: Une nouvelle version de React vient d'être annoncée !",
+        "date": "2024-03-14T12:00:00Z",
+        "likes": 543,
+        "reposts": 231,
+        "replies": 89
+      }
+    ]
+  }

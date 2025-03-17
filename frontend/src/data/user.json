@@ -1,0 +1,111 @@
+{
+  "id": "1",
+  "username": "johndoe",
+  "displayName": "John Doe",
+  "email": "john@doe.com",
+  "bio": "Développeur Full Stack 👨‍💻 | Passionné de tech 🚀 | Gaming 🎮",
+  "location": "Paris, France",
+  "website": "https://johndoe.dev",
+  "joinedDate": "2022-03",
+  "birthDate": "1995-06-15",
+  "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=johndoe",
+  "coverImage": "https://images.unsplash.com/photo-1484417894907-623942c8ee29",
+  "stats": {
+    "following": 542,
+    "followers": 1337,
+    "posts": 420
+  },
+  "posts": [
+    {
+      "id": "1",
+      "author": {
+        "name": "John Doe",
+        "username": "johndoe",
+        "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=johndoe"
+      },
+      "content": "Je viens de déployer mon nouveau projet React ! 🎉",
+      "date": "2024-03-15T14:23:00Z",
+      "likes": 25,
+      "reposts": 3,
+      "replies": 8,
+      "isRepost": false
+    },
+    {
+      "id": "2",
+      "author": {
+        "name": "John Doe",
+        "username": "johndoe",
+        "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=johndoe"
+      },
+      "content": "TypeScript est vraiment incroyable pour la maintenance du code. Impossible de revenir en arrière maintenant ! 💪",
+      "date": "2024-03-14T09:15:00Z",
+      "likes": 42,
+      "reposts": 12,
+      "replies": 5,
+      "isRepost": false
+    },
+    {
+      "id": "3",
+      "author": {
+        "name": "John Doe",
+        "username": "johndoe",
+        "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=johndoe"
+      },
+      "content": "Les nouveautés de React 19 sont prometteuses ! Qui les a déjà testées ? 🤔",
+      "date": "2024-03-13T18:30:00Z",
+      "likes": 31,
+      "reposts": 7,
+      "replies": 15,
+      "isRepost": false
+    }
+  ],
+  "reposts": [
+    {
+      "id": "repost1",
+      "author": {
+        "name": "John Doe",
+        "username": "johndoe",
+        "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=johndoe"
+      },
+      "content": "Un repost intéressant #dev",
+      "date": "2024-03-14T10:00:00Z",
+      "likes": 15,
+      "reposts": 5,
+      "replies": 2
+    }
+  ],
+  "mediaPost": [
+    {
+      "id": "media1",
+      "author": {
+        "name": "John Doe",
+        "username": "johndoe",
+        "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=johndoe"
+      },
+      "content": "Regardez cette belle photo !",
+      "date": "2024-03-13T15:30:00Z",
+      "likes": 45,
+      "reposts": 12,
+      "replies": 8,
+      "media": {
+        "type": "image",
+        "url": "https://picsum.photos/400/300"
+      }
+    }
+  ],
+  "likedPosts": [
+    {
+      "id": "liked1",
+      "author": {
+        "name": "John Doe",
+        "username": "johndoe",
+        "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=johndoe"
+      },
+      "content": "Un post que j'ai aimé",
+      "date": "2024-03-12T09:15:00Z",
+      "likes": 89,
+      "reposts": 23,
+      "replies": 15
+    }
+  ]
+} 

@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+@theme {
+    /* Couleurs principales */
+    --color-primary: #007bff;
+    --color-secondary: #6c757d;
+    
+    /* Couleurs de base */
+    --color-white: #ffffff;
+    --color-black: #000000;
+    
+    
+    /* Couleurs d'interface */
+    --color-fg: var(--color-primary);
+    --color-bg: var(--color-secondary);
+}
+
+@layer base {
+  .dark {
+    --color-fg: var(--color-secondary);
+    --color-bg: var(--color-primary);    
+  }
+}
