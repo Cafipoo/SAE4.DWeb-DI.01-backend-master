@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import Icon from './Icon';
 import TweetModal from './TweetModal';
 import userData from '../data/user.json';
@@ -15,21 +15,15 @@ const navItems = [
 
 const Sidebar = () => {
   const location = useLocation();
+  // const navigate = useNavigate();
   const [isTweetModalOpen, setIsTweetModalOpen] = useState(false);
 
-  const handleTweet = (content: string) => {
-    // Simuler l'ajout d'un tweet
-    const newTweet = {
-      id: String(Date.now()),
-      content,
-      date: new Date().toISOString(),
-      likes: 0,
-      reposts: 0,
-      replies: 0
-    };
-    
-    console.log('Nouveau tweet:', newTweet);
-    // Ici vous ajouteriez la logique pour sauvegarder le tweet
+  const handleTweetSuccess = () => {
+
+    if (location.pathname === "/home") {
+
+      window.dispatchEvent(new CustomEvent('tweet-created'));
+    }
   };
 
   return (
@@ -118,7 +112,7 @@ const Sidebar = () => {
       <TweetModal
         isOpen={isTweetModalOpen}
         onClose={() => setIsTweetModalOpen(false)}
-        onTweet={handleTweet}
+        onTweetSuccess={handleTweetSuccess}
       />
     </>
   );

@@ -1,102 +1,109 @@
-import { useState } from 'react';
-import actuData from '../data/actu.json';
-import Sidebar from '../components/Sidebar';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Tweet from '../components/Tweet';
-import TweetModal from '../components/TweetModal';
+import Sidebar from '../components/Sidebar';
+
+interface Post {
+  id: number;
+  content: string;
+  created_at: string;
+}
 
 const Home = () => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [timeline, setTimeline] = useState(actuData.timeline);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const observer = useRef<IntersectionObserver | null>(null);
 
-  const handleTweet = (content: string) => {
-    // Simuler l'ajout d'un nouveau tweet
-    const newTweet = {
-      id: `tweet-${Date.now()}`,
-      author: {
-        name: "Mon Compte",
-        username: "moncompte",
-        avatar: "/avatars/default.jpg"
-      },
-      content,
-      date: new Date().toISOString(),
-      likes: 0,
-      reposts: 0,
-      replies: 0
+  // Fonction pour ajouter un nouveau tweet
+  const addNewTweet = useCallback((newTweet: Post) => {
+    setPosts(prevPosts => [newTweet, ...prevPosts]);
+  }, []);
+
+  // Écouter l'événement de nouveau tweet
+  useEffect(() => {
+    const handleNewTweet = (event: CustomEvent<Post>) => {
+      addNewTweet(event.detail);
     };
 
-    setTimeline([newTweet, ...timeline]);
-  };
+    window.addEventListener('newTweet', handleNewTweet as EventListener);
+
+    return () => {
+      window.removeEventListener('newTweet', handleNewTweet as EventListener);
+    };
+  }, [addNewTweet]);
+
+  const lastPostElementRef = useCallback((node: HTMLDivElement) => {
+    if (loading) return;
+    
+    if (observer.current) observer.current.disconnect();
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        setCurrentPage(prevPage => prevPage + 1);
+      }
+    }, { threshold: 0.5 });
+    
+    if (node) observer.current.observe(node);
+  }, [loading, hasMore]);
+
+  useEffect(() => {
+    const fetchPosts = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`http://localhost:8080/posts?page=${currentPage}`);
+        const data = await response.json();
+        
+        setPosts(prevPosts => {
+          // Éviter les doublons en vérifiant les IDs
+          const newPosts = data.posts.filter((newPost: Post) => 
+            !prevPosts.some(existingPost => existingPost.id === newPost.id)
+          );
+          return [...prevPosts, ...newPosts];
+        });
+        
+        setHasMore(data.posts.length > 0);
+      } catch (error) {
+        console.error('Erreur lors de la récupération des posts:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPosts();
+  }, [currentPage]);
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      {/* Sidebar */}
+    <div className="flex min-h-screen bg-black">
       <Sidebar />
+      <main className="flex-1 border-l border-r border-gray-700 md:ml-72 max-w-[600px]">
+        <header className="sticky top-0 z-10 border-b border-gray-700 bg-black/50 backdrop-blur ml-3">
+          <h1 className="text-xl font-bold text-white p-4">Accueil</h1>
+        </header>
 
-      {/* Main Content */}
-      <div className="md:ml-72 pb-16 md:pb-0">
-        {/* Header */}
-        <div className="sticky top-0 z-10 bg-black/80 backdrop-blur-md border-b border-gray-800">
-          <div className="px-4 py-3">
-            <h1 className="text-xl font-bold">Accueil</h1>
-          </div>
-        </div>
-
-        {/* Tweet Box */}
-        <div className="border-b border-gray-800 px-4 py-3">
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="w-full text-left text-gray-400 hover:text-white py-2"
-          >
-            Quoi de neuf ?
-          </button>
-        </div>
-
-        {/* Timeline */}
-        <div>
-          {timeline.map(tweet => (
-            <div key={tweet.id} className="px-4 py-3">
-              <Tweet
-                id={tweet.id}
-                author={tweet.author}
-                content={tweet.content}
-                date={tweet.date}
-                likes={tweet.likes}
-                reposts={tweet.reposts}
-                replies={tweet.replies}
-                media={tweet.media}
-              />
+        <div className="divide-y divide-gray-700">
+          {posts.map((post, index) => (
+            <div
+              key={post.id}
+              ref={index === posts.length - 1 ? lastPostElementRef : undefined}
+            >
+              <Tweet post={post} />
             </div>
           ))}
         </div>
-      </div>
 
-      {/* Tweet Modal */}
-      <TweetModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onTweet={handleTweet}
-      />
+        {loading && (
+          <div className="p-4 text-center text-gray-500">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto"></div>
+            <p className="mt-2">Chargement des tweets...</p>
+          </div>
+        )}
 
-      {/* Mobile Tweet Button */}
-      <button
-        onClick={() => setIsModalOpen(true)}
-        className="fixed right-4 bottom-20 md:hidden bg-blue-500 hover:bg-blue-600 text-white rounded-full p-4 shadow-lg"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="h-6 w-6"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M12 4v16m8-8H4"
-          />
-        </svg>
-      </button>
+        {!hasMore && posts.length > 0 && (
+          <div className="p-4 text-center text-gray-500">
+            Vous avez vu tous les tweets disponibles
+          </div>
+        )}
+      </main>
     </div>
   );
 };

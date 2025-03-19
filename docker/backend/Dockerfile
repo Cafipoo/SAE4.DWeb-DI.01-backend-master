@@ -10,13 +10,13 @@ RUN apt-get update && \
     unzip \
     libzip-dev \
     libpq-dev \
-    libonig-dev
+    libonig-dev 
 
 # Install PDO MySQL extension
 RUN docker-php-ext-install pdo_mysql
 
 # Install Composer globally
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
-
+RUN chown -R www-data:www-data /var/www
 # Expose port 9000 for PHP-FPM
 EXPOSE 9000

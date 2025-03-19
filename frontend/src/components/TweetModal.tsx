@@ -4,11 +4,13 @@ import Button from './Button';
 interface TweetModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onTweet: (content: string) => void;
+  onTweetSuccess?: () => void; // Callback optionnel pour indiquer le succès
 }
 
-export default function TweetModal({ isOpen, onClose, onTweet }: TweetModalProps) {
+export default function TweetModal({ isOpen, onClose, onTweetSuccess }: TweetModalProps) {
   const [content, setContent] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const charLimit = 280;
 
   useEffect(() => {
@@ -16,18 +18,60 @@ export default function TweetModal({ isOpen, onClose, onTweet }: TweetModalProps
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
+      // Réinitialiser les états quand le modal se ferme
+      setContent('');
+      setError(null);
     }
     return () => {
       document.body.style.overflow = 'unset';
     };
   }, [isOpen]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (content.trim() && content.length <= charLimit) {
-      onTweet(content);
+    if (!content.trim() || content.length > charLimit) {
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setError(null);
+      
+      const response = await fetch('http://localhost:8080/posts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.errors?.content || 'Erreur lors de la création du post');
+      }
+
+      const newTweet = await response.json();
+      
+      // Émettre l'événement avec le nouveau tweet
+      const newTweetEvent = new CustomEvent('newTweet', {
+        detail: newTweet
+      });
+      window.dispatchEvent(newTweetEvent);
+      
+      // Réinitialiser le formulaire
       setContent('');
+      
+      // Fermer le modal
       onClose();
+      
+      // Notifier le parent que le post a été créé
+      if (onTweetSuccess) {
+        onTweetSuccess();
+      }
+    } catch (err: any) {
+      setError(err.message || 'Une erreur est survenue');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -35,6 +79,7 @@ export default function TweetModal({ isOpen, onClose, onTweet }: TweetModalProps
 
   const remainingChars = charLimit - content.length;
   const isOverLimit = remainingChars < 0;
+  const isSubmitDisabled = isOverLimit || content.length === 0 || isSubmitting;
 
   return (
     <>
@@ -76,17 +121,26 @@ export default function TweetModal({ isOpen, onClose, onTweet }: TweetModalProps
               className="w-full bg-transparent border-none focus:ring-0 text-white text-xl min-h-[100px] resize-none"
               maxLength={charLimit}
               rows={4}
+              disabled={isSubmitting}
             />
+            
+            {error && (
+              <div className="mt-2 text-red-500 text-sm">{error}</div>
+            )}
             
             <div className="flex items-center justify-between mt-4 border-t border-gray-800 pt-4">
               <div className={`text-sm ${isOverLimit ? 'text-red-500' : 'text-gray-400'}`}>
                 {remainingChars} caractères restants
               </div>
               <Button 
-                text="Tweet" 
+                variant="default" 
+                rounded="full" 
+                size="lg" 
                 type="submit"
-                disabled={isOverLimit || content.length === 0}
-              />
+                disabled={isSubmitDisabled}
+              >
+                Publier
+              </Button>
             </div>
           </form>
         </div>

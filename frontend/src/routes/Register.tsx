@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import Logo from '../components/Logo';
 import Input from '../components/Input';
@@ -8,6 +8,7 @@ import AuthLayout from '../components/AuthLayout';
 const Register = () => {
   const [formData, setFormData] = useState({
     name: '',
+    username: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -16,6 +17,7 @@ const Register = () => {
 
   const [errors, setErrors] = useState({
     name: '',
+    username: '',
     email: '',
     password: '',
     confirmPassword: ''
@@ -36,6 +38,20 @@ const Register = () => {
     return minLength && hasUpper && hasLower && hasNumber && hasSpecial;
   };
 
+  // Vérifier si le formulaire est valide
+  const isFormValid = useMemo(() => {
+    const noErrors = !Object.values(errors).some(error => error !== '');
+    const allFieldsFilled = Object.values(formData).every(value => value !== '');
+    const passwordValid = validatePassword(formData.password);
+    const emailValid = validateEmail(formData.email);
+    const passwordsMatch = formData.password === formData.confirmPassword;
+    const nameValid = formData.name.length >= 2;
+    const usernameValid = formData.username.length >= 2;
+
+    return noErrors && allFieldsFilled && passwordValid && emailValid && 
+           passwordsMatch && nameValid && usernameValid;
+  }, [formData, errors]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -43,15 +59,25 @@ const Register = () => {
     // Validation en temps réel
     let error = '';
     switch (name) {
+      case 'name':
+        if (value.length < 2) {
+          error = 'Le nom doit contenir au moins 2 caractères';
+        }
+        break;
+      case 'username':
+        if (value.length < 2) {
+          error = 'Le nom d\'utilisateur doit contenir au moins 2 caractères';
+        }
+        break;
       case 'email':
         if (!validateEmail(value)) {
           error = 'Email invalide';
         }
         break;
-      // case 'password':
-      //   if (!validatePassword(value)) {
-      //     error = 'Le mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial';
-      //   }
+      case 'password':
+        if (!validatePassword(value)) {
+          error = 'Le mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial';
+        }
         break;
       case 'confirmPassword':
         if (value !== formData.password) {
@@ -59,6 +85,7 @@ const Register = () => {
         }
         break;
     }
+    
     setErrors(prev => ({ ...prev, [name]: error }));
   };
 
@@ -68,6 +95,7 @@ const Register = () => {
     // Validation finale avant soumission
     const newErrors = {
       name: formData.name.length < 2 ? 'Le nom doit contenir au moins 2 caractères' : '',
+      username: formData.username.length < 2 ? 'Le nom d\'utilisateur doit contenir au moins 2 caractères' : '',
       email: !validateEmail(formData.email) ? 'Email invalide' : '',
       password: !validatePassword(formData.password) ? 'Mot de passe invalide' : '',
       confirmPassword: formData.password !== formData.confirmPassword ? 'Les mots de passe ne correspondent pas' : ''
@@ -96,6 +124,14 @@ const Register = () => {
             value={formData.name}
             onChange={handleChange}
             error={errors.name}
+          />
+          <Input
+            type="text"
+            name="username"
+            placeholder="Nom d'utilisateur"
+            value={formData.username}
+            onChange={handleChange}
+            error={errors.username}
           />
           <Input
             type="email"
@@ -132,7 +168,14 @@ const Register = () => {
         </div>
 
         <div>
-        <Button variant="default" rounded="full" size="xl">S'inscrire</Button>
+          <Button 
+            variant={isFormValid ? "default" : "secondary"} 
+            rounded="full" 
+            size="xl"
+            disabled={!isFormValid}
+          >
+            S'inscrire
+          </Button>
         </div>
       </form>
 
