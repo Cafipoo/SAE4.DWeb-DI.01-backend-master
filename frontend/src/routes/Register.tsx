@@ -1,11 +1,13 @@
 import { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Logo from '../components/Logo';
 import Input from '../components/Input';
 import Button from '../components/Button';
 import AuthLayout from '../components/AuthLayout';
+import AuthService from '../services/auth.service';
 
 const Register = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
     username: '',
@@ -89,7 +91,7 @@ const Register = () => {
     setErrors(prev => ({ ...prev, [name]: error }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validation finale avant soumission
@@ -105,8 +107,24 @@ const Register = () => {
 
     // Si pas d'erreurs, on peut soumettre
     if (!Object.values(newErrors).some(error => error !== '')) {
-      console.log('Form submitted:', formData);
-      // Logique d'inscription à implémenter
+      try {
+        await AuthService.register({
+          name: formData.name,
+          username: formData.username,
+          email: formData.email,
+          password: formData.password,
+          birthDate: formData.birthDate
+        });
+
+        // Redirection vers la page d'accueil après inscription réussie
+        navigate('/');
+      } catch (error) {
+        console.error('Erreur:', error);
+        setErrors(prev => ({
+          ...prev,
+          email: error instanceof Error ? error.message : 'Une erreur est survenue lors de l\'inscription'
+        }));
+      }
     }
   };
 

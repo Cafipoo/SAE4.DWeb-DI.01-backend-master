@@ -1,20 +1,32 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Logo from '../components/Logo';
 import Input from '../components/Input';
 import Button from '../components/Button';
 import AuthLayout from '../components/AuthLayout';
+import AuthService from '../services/auth.service';
 
 const Login = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Logique de connexion à implémenter
-    console.log('Form submitted:', formData);
+    setError('');
+
+    try {
+      await AuthService.login(formData.email, formData.password);
+      // Redirection vers la page d'accueil après connexion réussie
+      navigate('/home');
+    } catch (error) {
+      console.error('Erreur:', error);
+      setError(error instanceof Error ? error.message : 'Une erreur est survenue lors de la connexion');
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -30,6 +42,12 @@ const Login = () => {
       <h2 className="text-2xl font-bold text-center text-white">Connectez-vous</h2>
       
       <form onSubmit={handleSubmit} className="mt-8 space-y-6">
+        {error && (
+          <div className="bg-red-500/10 border border-red-500 text-red-500 rounded-lg p-3 text-sm">
+            {error}
+          </div>
+        )}
+        
         <div className="space-y-4">
           <Input
             type="email"
@@ -48,7 +66,14 @@ const Login = () => {
         </div>
 
         <div>
-          <Button variant="default" rounded="full" size="xl">Se connecter</Button>
+          <Button 
+            variant="default" 
+            rounded="full" 
+            size="xl"
+            disabled={!formData.email || !formData.password}
+          >
+            Se connecter
+          </Button>
         </div>
       </form>
 

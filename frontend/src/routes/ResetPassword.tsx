@@ -45,7 +45,7 @@ const ResetPassword = () => {
             onChange={handleChange}
           />
         </div>
-        <Button text="Réinitialiser" />
+        <Button variant="default" rounded="full" size="xl">Réinitialiser</Button>
       </form>
 
       <p className="mt-4 text-center text-gray-400">
