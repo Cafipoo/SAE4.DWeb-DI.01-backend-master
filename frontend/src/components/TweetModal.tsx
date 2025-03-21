@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Button from './Button';
+import { DataRequests } from '../data/data-requests';
 
 interface TweetModalProps {
   isOpen: boolean;
@@ -47,20 +48,7 @@ export default function TweetModal({ isOpen, onClose, onTweetSuccess }: TweetMod
       setIsSubmitting(true);
       setError(null);
       
-      const response = await fetch(`http://localhost:8080/posts/${getUserId()}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ content }),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.errors?.content || 'Erreur lors de la création du post');
-      }
-
-      const newTweet = await response.json();
+      const newTweet = await DataRequests.createPost(content);
       
       // Émettre l'événement avec le nouveau tweet
       const newTweetEvent = new CustomEvent('newTweet', {

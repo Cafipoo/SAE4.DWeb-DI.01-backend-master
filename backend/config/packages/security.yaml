@@ -11,22 +11,22 @@ security:
                 class: App\Entity\User
                 property: email
 
-        # api_user_provider:
-        #     entity:
-        #         class: App\Entity\AccessToken
-        #         property: token
+        api_user_provider:
+            entity:
+                class: App\Entity\User
+                property: apiToken
 
     firewalls:
         dev:
             pattern: ^/(_(profiler|wdt)|css|images|js)/
             security: false
 
-        # api:
-        #     pattern: ^/
-        #     provider: api_user_provider
-        #     custom_authenticator: App\Security\ApiAuthenticator
-        #     stateless: true
-        #     lazy: true
+        api:
+            pattern: ^/
+            provider: api_user_provider
+            custom_authenticator: App\Security\ApiAuthenticator
+            stateless: true
+            lazy: true
         
         register:
             pattern: ^/register
@@ -47,11 +47,10 @@ security:
     # Easy way to control access for large sections of your site
     # Note: Only the *first* access control that matches will be used
     access_control:
-        # - { path: ^/register, roles: PUBLIC_ACCESS }
-        # - { path: ^/login, roles: PUBLIC_ACCESS }
-        # - { path: ^/verify-token, roles: PUBLIC_ACCESS }
-        # - { path: ^/posts, roles: PUBLIC_ACCESS }
-
+        - { path: ^/login, roles: PUBLIC_ACCESS }
+        - { path: ^/register, roles: PUBLIC_ACCESS }
+        - { path: ^/admin, roles: PUBLIC_ACCESS }
+        - { path: ^/, roles: ROLE_USER }
 when@test:
     security:
         password_hashers:

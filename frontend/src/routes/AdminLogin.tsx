@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import AuthLayout from '../components/AuthLayout';
 import Input from '../components/Input';
 import Button from '../components/Button';
+import AuthService from '../services/auth.service';
 
 const AdminLogin = () => {
   const navigate = useNavigate();
@@ -12,13 +13,19 @@ const AdminLogin = () => {
   });
   const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (credentials.username === 'root' && credentials.password === 'root') {
+    setError('');
+
+    try {
+      let response = await AuthService.admin(credentials.username, credentials.password);
       localStorage.setItem('adminAuth', 'true');
+      console.log(response);
+      // Redirection vers la page d'accueil après connexion réussie
       navigate('/backoffice');
-    } else {
-      setError('Identifiants invalides');
+    } catch (error) {
+      console.error('Erreur:', error);
+      setError(error instanceof Error ? error.message : 'Une erreur est survenue lors de la connexion');
     }
   };
 

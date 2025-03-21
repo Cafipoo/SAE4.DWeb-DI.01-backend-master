@@ -5,7 +5,7 @@ import TweetModal from './TweetModal';
 import Button from './Button';
 import Logo from './Logo';
 import { DataRequests, User } from '../data/data-requests';
-
+import AuthService from '../services/auth.service';
 const navItems = [
   { icon: "home", label: "Accueil", path: "/home" },
   { icon: "explore", label: "Explorer", path: "/explore" },
@@ -99,16 +99,24 @@ const Sidebar = () => {
           </ul>
 
           {/* Tweet Button */}
-          <div className="mt-4 px-2">
             <Button
               variant="default"
               size="xl"
               rounded="full"
               onClick={() => setIsTweetModalOpen(true)}
+              className="mt-2 px-2"
             >
               Tweet
             </Button>
-          </div>
+            <Button
+              variant="default"
+              size="xl"
+              rounded="full"
+              onClick={() => AuthService.logout()}
+              className="mt-2 px-2"
+            >
+              Se déconnecter
+            </Button>
         </nav>
         
 

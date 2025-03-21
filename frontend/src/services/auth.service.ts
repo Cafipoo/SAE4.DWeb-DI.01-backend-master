@@ -1,4 +1,5 @@
 const API_URL = 'http://localhost:8080';
+import { useNavigate } from 'react-router-dom';
 
 export interface User {
     id: number;
@@ -26,7 +27,7 @@ class AuthService {
     private static TOKEN_KEY = 'auth_token';
     private static USER_ID_KEY = 'user_id';
 
-    private static async authenticatedFetch(endpoint: string, options: RequestInit = {}): Promise<Response> {
+    public static async authenticatedFetch(endpoint: string, options: RequestInit = {}): Promise<Response> {
         const token = this.getToken();
         const headers = new Headers(options.headers || {});
         
@@ -54,6 +55,30 @@ class AuthService {
         }
 
         const data = await response.json();
+        this.setAuthData(data.token, data.user.id);
+        return data;
+    }
+
+    static async admin(email: string, password: string): Promise<AuthResponse> {
+        this.clearAuthData();
+
+        const response = await this.authenticatedFetch('/admin', {
+            method: 'POST',
+            body: JSON.stringify({ email, password }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            if (response.status === 403) {
+                throw new Error(data.error || 'Vous n\'avez pas les permissions nécessaires');
+            } else if (response.status === 401) {
+                throw new Error('Identifiants invalides');
+            } else {
+                throw new Error(data.error || 'Une erreur est survenue');
+            }
+        }
+
         this.setAuthData(data.token, data.user.id);
         return data;
     }
@@ -112,10 +137,9 @@ class AuthService {
         const token = this.getToken();
         if (token) {
             try {
-                await this.authenticatedFetch('/logout', {
-                    method: 'POST',
-                    body: JSON.stringify({ token }),
-                });
+                localStorage.removeItem(this.TOKEN_KEY);
+                localStorage.removeItem(this.USER_ID_KEY);
+                window.location.href = 'http://localhost:8090/login';
             } catch (error) {
                 console.error('Erreur lors de la déconnexion:', error);
             }

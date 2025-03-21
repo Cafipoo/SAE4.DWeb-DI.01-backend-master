@@ -3,15 +3,12 @@
 namespace App\Controller;
 
 use App\Entity\User;
-use App\Entity\AccessToken;
 use App\Repository\UserRepository;
-use App\Repository\AccessTokenRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Annotation\Route;
-use Symfony\Component\Security\Http\Authentication\AuthenticationUtils;
 use Doctrine\ORM\EntityManagerInterface;
 
 class SecurityController extends AbstractController
@@ -62,19 +59,15 @@ class SecurityController extends AbstractController
             $hashedPassword = $passwordHasher->hashPassword($user, $data['password']);
             $user->setPassword($hashedPassword);
 
-            // Création du token d'accès
-            $accessToken = new AccessToken();
-            $accessToken->setToken(bin2hex(random_bytes(32)));
-            $accessToken->setUser($user);
-            $accessToken->setExpiresAt((new \DateTime())->modify('+30 days'));
+            // Génération du token d'API
+            $user->setApiToken(bin2hex(random_bytes(32)));
 
             // Sauvegarde en base de données
             $entityManager->persist($user);
-            $entityManager->persist($accessToken);
             $entityManager->flush();
 
             return $this->json([
-                'token' => $accessToken->getToken(),
+                'token' => $user->getApiToken(),
                 'user' => [
                     'id' => $user->getId(),
                     'email' => $user->getEmail(),
@@ -95,8 +88,7 @@ class SecurityController extends AbstractController
         Request $request,
         UserRepository $userRepository,
         UserPasswordHasherInterface $passwordHasher,
-        EntityManagerInterface $entityManager,
-        AccessTokenRepository $tokenRepository
+        EntityManagerInterface $entityManager
     ): JsonResponse {
         try {
             $data = json_decode($request->getContent(), true);
@@ -115,33 +107,81 @@ class SecurityController extends AbstractController
                 ], 401);
             }
 
-            // Recherche d'un token existant pour l'utilisateur
-            $existingToken = $tokenRepository->findOneBy(['user' => $user]);
-
-            if ($existingToken) {
-                // Mise à jour du token existant
-                $existingToken->setToken(bin2hex(random_bytes(32)));
-                $existingToken->setExpiresAt((new \DateTime())->modify('+30 days'));
-                $accessToken = $existingToken;
-            } else {
-                // Création d'un nouveau token si aucun n'existe
-                $accessToken = new AccessToken();
-                $accessToken->setToken(bin2hex(random_bytes(32)));
-                $accessToken->setUser($user);
-                $accessToken->setExpiresAt((new \DateTime())->modify('+30 days'));
-                $entityManager->persist($accessToken);
-            }
-
+            // Génération d'un nouveau token API
+            $user->setApiToken(bin2hex(random_bytes(32)));
             $entityManager->flush();
 
             return $this->json([
-                'token' => $accessToken->getToken(),
+                'token' => $user->getApiToken(),
                 'user' => [
                     'id' => $user->getId(),
                     'email' => $user->getEmail(),
                     'username' => $user->getUsername(),
                     'name' => $user->getName(),
                     'avatar' => $user->getAvatar()
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return $this->json([
+                'error' => 'Une erreur est survenue lors de la connexion'
+            ], 500);
+        }
+    }
+
+    #[Route('/admin', name: 'admin', methods: ['POST'])]
+    public function admin(
+        Request $request,
+        UserRepository $userRepository,
+        UserPasswordHasherInterface $passwordHasher,
+        EntityManagerInterface $entityManager
+    ): JsonResponse {
+        try {
+            $data = json_decode($request->getContent(), true);
+
+            if (!isset($data['email'], $data['password'])) {
+                return $this->json([
+                    'error' => 'Email et mot de passe requis'
+                ], 400);
+            }
+
+            // On récupère d'abord l'utilisateur
+            $user = $userRepository->findOneBy(['email' => $data['email']]);
+
+            if (!$user) {
+                return $this->json([
+                    'error' => 'Email ou mot de passe incorrect'
+                ], 401);
+            }
+
+            // On vérifie si l'utilisateur a le rôle ROLE_ADMIN
+            $roles = $user->getRoles();
+            if (!in_array('ROLE_ADMIN', $roles)) {
+                return $this->json([
+                    'error' => 'Vous n\'avez pas les permissions pour accéder à cette page'
+                ], 403);
+            }
+
+            // On vérifie ensuite le mot de passe
+            if (!$passwordHasher->isPasswordValid($user, $data['password'])) {
+                return $this->json([
+                    'error' => 'Email ou mot de passe incorrect'
+                ], 401);
+            }
+
+            // Génération d'un nouveau token API
+            $user->setApiToken(bin2hex(random_bytes(32)));
+            $entityManager->flush();
+
+            return $this->json([
+                'token' => $user->getApiToken(),
+                'user' => [
+                    'id' => $user->getId(),
+                    'email' => $user->getEmail(),
+                    'username' => $user->getUsername(),
+                    'name' => $user->getName(),
+                    'avatar' => $user->getAvatar(),
+                    'roles' => $user->getRoles()
                 ]
             ]);
 
