@@ -3,23 +3,7 @@ import ProfileHeader from '../components/ProfileHeader';
 import ProfileInfo from '../components/ProfileInfo';
 import Tweet from '../components/Tweet';
 import Sidebar from '../components/Sidebar';
-
-interface User {
-  id: number;
-  username: string;
-  name: string;
-  email: string;
-  joined_date: string;
-  avatar: string;
-  cover: string;
-  bio: string;
-}
-
-interface Post {
-  id: number;
-  content: string;
-  created_at: string;
-}
+import { DataRequests, User, Post } from '../data/data-requests';
 
 const Profile = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -48,7 +32,7 @@ const Profile = () => {
     };
   }, [addNewTweet]);
 
-  const observer = useRef<IntersectionObserver>();
+  const observer = useRef<IntersectionObserver | null>(null);
   const lastPostElementRef = useCallback((node: HTMLDivElement) => {
     if (loading || loadingMore) return;
     
@@ -67,12 +51,8 @@ const Profile = () => {
     const fetchUserData = async () => {
       try {
         setLoading(true);
-        const response = await fetch('http://localhost:8080/user/2');
-        if (!response.ok) {
-          throw new Error('Erreur lors de la récupération des données utilisateur');
-        }
-        const data = await response.json();
-        setUser(data);
+        const userData = await DataRequests.getCurrentUserProfile();
+        setUser(userData);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Une erreur est survenue');
       } finally {
@@ -86,22 +66,20 @@ const Profile = () => {
   // Charger les posts avec pagination
   useEffect(() => {
     const fetchPosts = async () => {
+      if (!user) return;
+      
       try {
         setLoadingMore(true);
-        const response = await fetch(`http://localhost:8080/user/1/posts?page=${currentPage}`);
-        if (!response.ok) {
-          throw new Error('Erreur lors de la récupération des posts');
-        }
-        const data = await response.json();
+        const response = await DataRequests.getUserPosts(user.id, currentPage);
         
         setPosts(prevPosts => {
-          const newPosts = data.posts.filter((newPost: Post) => 
+          const newPosts = response.posts.filter(newPost => 
             !prevPosts.some(existingPost => existingPost.id === newPost.id)
           );
-          return currentPage === 1 ? data.posts : [...prevPosts, ...newPosts];
+          return currentPage === 1 ? response.posts : [...prevPosts, ...newPosts];
         });
         
-        setHasMore(data.posts.length > 0);
+        setHasMore(response.hasMore);
       } catch (err) {
         console.error('Erreur lors du chargement des posts:', err);
       } finally {
@@ -110,7 +88,7 @@ const Profile = () => {
     };
 
     fetchPosts();
-  }, [currentPage]);
+  }, [currentPage, user]);
 
   if (loading) {
     return (
@@ -142,8 +120,8 @@ const Profile = () => {
 
       <div className="md:ml-72 pb-16 md:pb-0">
         <ProfileHeader
-          coverImage={user.cover || 'https://via.placeholder.com/1500x500'}
-          avatar={user.avatar || 'https://via.placeholder.com/400x400'}
+          coverImage={user.cover || ''}
+          avatar={user.avatar || ''}
           displayName={user.name}
           username={user.username}
         />
@@ -181,7 +159,7 @@ const Profile = () => {
                       author: {
                         name: user.name,
                         username: user.username,
-                        avatar: user.avatar || 'https://via.placeholder.com/400x400'
+                        avatar: user.avatar || ''
                       },
                       likes: 0,
                       reposts: 0,

@@ -2,7 +2,7 @@
 
 @theme {
     /* Couleurs principales */
-    --color-primary: #007bff;
+    --color-primary: oklch(0.577 0.245 27.325);
     --color-secondary: #6c757d;
     
     /* Couleurs de base */

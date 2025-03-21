@@ -57,8 +57,8 @@ class PostController extends AbstractController
         ]);
     }
 
-    #[Route('/posts', name: 'posts.create', methods: ['POST'])]
-    public function create(Request $request, PostRepository $postRepository, UserRepository $userRepository): JsonResponse
+    #[Route('/posts/{id}', name: 'posts.create', methods: ['POST'])]
+    public function create(int $id, Request $request, PostRepository $postRepository, UserRepository $userRepository): JsonResponse
     {
         try {
             $data = json_decode($request->getContent(), true);
@@ -71,9 +71,7 @@ class PostController extends AbstractController
                 return $this->json(['errors' => ['content' => 'Le contenu ne doit pas dépasser 280 caractères']], Response::HTTP_BAD_REQUEST);
             }
 
-            // Pour le moment, on utilise l'utilisateur avec ID 1
-            // À remplacer plus tard par l'utilisateur authentifié
-            $user = $userRepository->find(1);
+            $user = $userRepository->find($id);
             if (!$user) {
                 throw new \Exception('Utilisateur non trouvé');
             }

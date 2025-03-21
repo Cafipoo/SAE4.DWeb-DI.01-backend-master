@@ -66,6 +66,7 @@ class UserController extends AbstractController
     #[Route('/user/{id}', name: 'user.show', methods: ['GET'])]
     public function show(Request $request, UserRepository $userRepository, PostRepository $postRepository, int $id): JsonResponse
     {
+        
         $user = $userRepository->find($id);
         if (!$user) {
             return $this->json(['error' => 'User not found'], Response::HTTP_NOT_FOUND);

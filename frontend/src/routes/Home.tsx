@@ -1,12 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Tweet from '../components/Tweet';
 import Sidebar from '../components/Sidebar';
-
-interface Post {
-  id: number;
-  content: string;
-  created_at: string;
-}
+import { DataRequests, Post } from '../data/data-requests';
 
 const Home = () => {
   const [posts, setPosts] = useState<Post[]>([]);
@@ -50,18 +45,16 @@ const Home = () => {
     const fetchPosts = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`http://localhost:8080/posts?page=${currentPage}`);
-        const data = await response.json();
+        const response = await DataRequests.getAllPosts(currentPage);
         
         setPosts(prevPosts => {
-          // Éviter les doublons en vérifiant les IDs
-          const newPosts = data.posts.filter((newPost: Post) => 
+          const newPosts = response.posts.filter(newPost => 
             !prevPosts.some(existingPost => existingPost.id === newPost.id)
           );
           return [...prevPosts, ...newPosts];
         });
         
-        setHasMore(data.posts.length > 0);
+        setHasMore(response.hasMore);
       } catch (error) {
         console.error('Erreur lors de la récupération des posts:', error);
       } finally {
@@ -76,7 +69,7 @@ const Home = () => {
     <div className="flex min-h-screen bg-black">
       <Sidebar />
       <main className="flex-1 border-l border-r border-gray-700 md:ml-72 max-w-[600px]">
-        <header className="sticky top-0 z-10 border-b border-gray-700 bg-black/50 backdrop-blur ml-3">
+        <header className="sticky top-0 z-10 border-b border-gray-700 bg-black backdrop-blur">
           <h1 className="text-xl font-bold text-white p-4">Accueil</h1>
         </header>
 

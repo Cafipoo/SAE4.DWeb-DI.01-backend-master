@@ -20,7 +20,9 @@ const Login = () => {
     setError('');
 
     try {
-      await AuthService.login(formData.email, formData.password);
+      let response = await AuthService.login(formData.email, formData.password);
+      
+      console.log(response);
       // Redirection vers la page d'accueil après connexion réussie
       navigate('/home');
     } catch (error) {

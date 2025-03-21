@@ -13,6 +13,16 @@ export default function TweetModal({ isOpen, onClose, onTweetSuccess }: TweetMod
   const [error, setError] = useState<string | null>(null);
   const charLimit = 280;
 
+  // Récupération de l'ID utilisateur à l'intérieur du composant
+  const getUserId = () => {
+    const user = localStorage.getItem('user');
+    if (!user) {
+      throw new Error('User not found in localStorage');
+    }
+    const userData = JSON.parse(user);
+    return userData.id;
+  };
+
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -37,7 +47,7 @@ export default function TweetModal({ isOpen, onClose, onTweetSuccess }: TweetMod
       setIsSubmitting(true);
       setError(null);
       
-      const response = await fetch('http://localhost:8080/posts', {
+      const response = await fetch(`http://localhost:8080/posts/${getUserId()}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

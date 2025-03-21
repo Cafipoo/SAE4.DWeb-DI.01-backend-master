@@ -8,6 +8,10 @@ import AdminLogin from './routes/AdminLogin';
 import Backoffice from './routes/Backoffice';
 import Home from './routes/Home';
 
+// let user = localStorage.getItem('user');
+// let userData = JSON.parse(user);
+// let id = userData.id;
+
 
 function App() {
   return (
@@ -17,10 +21,10 @@ function App() {
       <Route path="/reset-password" element={<RequestReset />} />
       <Route path="/reset-password/new" element={<ResetPassword />} />
       <Route path="/" element={<Login />} />
-      <Route path="/profile" element={<Profile />} />
+      <Route path="/profile" element={<Profile/>} />
       <Route path="/admin" element={<AdminLogin />} />
       <Route path="/backoffice" element={<Backoffice />} />
-      <Route path="/home" element={<Home />} />
+      <Route path="/home" element={<Home/>} />
     </Routes>
   );
 }

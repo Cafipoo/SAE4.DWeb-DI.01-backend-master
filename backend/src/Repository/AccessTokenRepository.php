@@ -23,6 +23,9 @@ class AccessTokenRepository extends ServiceEntityRepository
 
     public function findValidToken(string $token): ?AccessToken
     {
+        // Nettoyer les tokens expirés avant de chercher
+        $this->removeExpiredTokens();
+
         return $this->createQueryBuilder('t')
             ->where('t.token = :token')
             ->andWhere('t.expiresAt > :now')
@@ -42,5 +45,10 @@ class AccessTokenRepository extends ServiceEntityRepository
             ->setParameter('now', new \DateTime())
             ->getQuery()
             ->execute();
+    }
+
+    public function findOneByValue(string $token): ?AccessToken
+    {
+        return $this->findOneBy(['token' => $token]);
     }
 } 

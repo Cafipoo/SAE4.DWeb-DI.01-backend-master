@@ -1,8 +1,10 @@
-import { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import Icon from './Icon';
 import TweetModal from './TweetModal';
-import userData from '../data/user.json';
+import Button from './Button';
+import Logo from './Logo';
+import { DataRequests, User } from '../data/data-requests';
 
 const navItems = [
   { icon: "home", label: "Accueil", path: "/home" },
@@ -15,16 +17,31 @@ const navItems = [
 
 const Sidebar = () => {
   const location = useLocation();
-  // const navigate = useNavigate();
+  const [user, setUser] = useState<User | null>(null);
   const [isTweetModalOpen, setIsTweetModalOpen] = useState(false);
 
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const userData = await DataRequests.getCurrentUserProfile();
+        setUser(userData);
+      } catch (error) {
+        console.error('Erreur lors de la récupération des données utilisateur:', error);
+      }
+    };
+
+    fetchUserData();
+  }, []);
+
   const handleTweetSuccess = () => {
-
     if (location.pathname === "/home") {
-
       window.dispatchEvent(new CustomEvent('tweet-created'));
     }
   };
+
+  if (!user) {
+    return null; // ou un loader si vous préférez
+  }
 
   return (
     <>
@@ -55,8 +72,8 @@ const Sidebar = () => {
       <div className="hidden md:flex flex-col fixed h-screen w-72 bg-black border-r border-gray-800">
         {/* Logo avec alignement */}
         <div className="px-4">
-          <Link to="/home" className="inline-block p-3 rounded-full hover:bg-gray-900">
-            <Icon name="logo" className="w-8 h-8 text-white" />
+          <Link to="/home" className="inline-block p-3 rounded-full hover:bg-red-900">
+            <Logo />
           </Link>
         </div>
 
@@ -83,30 +100,32 @@ const Sidebar = () => {
 
           {/* Tweet Button */}
           <div className="mt-4 px-2">
-            <button
+            <Button
+              variant="default"
+              size="xl"
+              rounded="full"
               onClick={() => setIsTweetModalOpen(true)}
-              className="w-full bg-blue-500 text-white rounded-full py-3 font-bold hover:bg-blue-600 transition-colors"
             >
               Tweet
-            </button>
+            </Button>
           </div>
         </nav>
+        
 
-        {/* User Menu */}
-        <div className="p-4 mt-auto border-t border-gray-800">
+        {/* <div className="p-4 mt-auto border-t border-gray-800">
           <button className="flex items-center w-full gap-3 p-3 rounded-full hover:bg-gray-900 transition-colors">
             <img
-              src="https://api.dicebear.com/7.x/avataaars/svg?seed=current-user"
+              src={user.avatar || ''}
               alt="Profile"
               className="w-10 h-10 rounded-full"
             />
             <div className="flex-1 text-left">
-              <div className="font-bold text-white">John Doe</div>
-              <div className="text-gray-500">@johndoe</div>
+              <div className="font-bold text-white">{user.name}</div>
+              <div className="text-gray-500">@{user.username}</div>
             </div>
             <Icon name="more" className="w-5 h-5 text-gray-500" />
           </button>
-        </div>
+        </div> */}
       </div>
 
       <TweetModal

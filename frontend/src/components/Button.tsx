@@ -4,7 +4,7 @@ import { cn } from "../utils/cn";
 const buttonVariants = cva("font-medium focus:outline-none transition-colors", {
   variants: {
     variant: {
-      default: "bg-[var(--color-primary)] text-[var(--color-white)] shadow-lg hover:opacity-90 focus:ring-[var(--color-primary)]",
+      default: "bg-primary text-[var(--color-white)] shadow-lg hover:opacity-90 focus:ring-[var(--color-primary)]",
       secondary: "bg-[var(--color-secondary)] text-[var(--color-white)] shadow-lg hover:opacity-90 focus:ring-[var(--color-secondary)]",
       destructive: "bg-[var(--color-danger)] text-[var(--color-white)] shadow-lg hover:opacity-90 focus:ring-[var(--color-danger)]",
     },

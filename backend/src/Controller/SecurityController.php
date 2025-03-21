@@ -95,7 +95,8 @@ class SecurityController extends AbstractController
         Request $request,
         UserRepository $userRepository,
         UserPasswordHasherInterface $passwordHasher,
-        EntityManagerInterface $entityManager
+        EntityManagerInterface $entityManager,
+        AccessTokenRepository $tokenRepository
     ): JsonResponse {
         try {
             $data = json_decode($request->getContent(), true);
@@ -114,13 +115,23 @@ class SecurityController extends AbstractController
                 ], 401);
             }
 
-            // Création du token d'accès
-            $accessToken = new AccessToken();
-            $accessToken->setToken(bin2hex(random_bytes(32)));
-            $accessToken->setUser($user);
-            $accessToken->setExpiresAt((new \DateTime())->modify('+30 days'));
+            // Recherche d'un token existant pour l'utilisateur
+            $existingToken = $tokenRepository->findOneBy(['user' => $user]);
 
-            $entityManager->persist($accessToken);
+            if ($existingToken) {
+                // Mise à jour du token existant
+                $existingToken->setToken(bin2hex(random_bytes(32)));
+                $existingToken->setExpiresAt((new \DateTime())->modify('+30 days'));
+                $accessToken = $existingToken;
+            } else {
+                // Création d'un nouveau token si aucun n'existe
+                $accessToken = new AccessToken();
+                $accessToken->setToken(bin2hex(random_bytes(32)));
+                $accessToken->setUser($user);
+                $accessToken->setExpiresAt((new \DateTime())->modify('+30 days'));
+                $entityManager->persist($accessToken);
+            }
+
             $entityManager->flush();
 
             return $this->json([
@@ -141,76 +152,76 @@ class SecurityController extends AbstractController
         }
     }
 
-    #[Route('/verify-token', name: 'verify_token', methods: ['POST'])]
-    public function verifyToken(
-        Request $request,
-        AccessTokenRepository $tokenRepository
-    ): JsonResponse {
-        try {
-            $data = json_decode($request->getContent(), true);
+    // #[Route('/verify-token', name: 'verify_token', methods: ['POST'])]
+    // public function verifyToken(
+    //     Request $request,
+    //     AccessTokenRepository $tokenRepository
+    // ): JsonResponse {
+    //     try {
+    //         $data = json_decode($request->getContent(), true);
             
-            if (!isset($data['token'])) {
-                return $this->json([
-                    'error' => 'Token requis'
-                ], 400);
-            }
+    //         if (!isset($data['token'])) {
+    //             return $this->json([
+    //                 'error' => 'Token requis'
+    //             ], 400);
+    //         }
 
-            $token = $tokenRepository->findValidToken($data['token']);
+    //         $token = $tokenRepository->findValidToken($data['token']);
 
-            if (!$token) {
-                return $this->json([
-                    'error' => 'Token invalide ou expiré'
-                ], 401);
-            }
+    //         if (!$token) {
+    //             return $this->json([
+    //                 'error' => 'Token invalide ou expiré'
+    //             ], 401);
+    //         }
 
-            $user = $token->getUser();
-            return $this->json([
-                'user' => [
-                    'id' => $user->getId(),
-                    'email' => $user->getEmail(),
-                    'username' => $user->getUsername(),
-                    'name' => $user->getName(),
-                    'avatar' => $user->getAvatar()
-                ]
-            ]);
+    //         $user = $token->getUser();
+    //         return $this->json([
+    //             'user' => [
+    //                 'id' => $user->getId(),
+    //                 'email' => $user->getEmail(),
+    //                 'username' => $user->getUsername(),
+    //                 'name' => $user->getName(),
+    //                 'avatar' => $user->getAvatar()
+    //             ]
+    //         ]);
 
-        } catch (\Exception $e) {
-            return $this->json([
-                'error' => 'Une erreur est survenue lors de la vérification du token'
-            ], 500);
-        }
-    }
+    //     } catch (\Exception $e) {
+    //         return $this->json([
+    //             'error' => 'Une erreur est survenue lors de la vérification du token'
+    //         ], 500);
+    //     }
+    // }
 
-    #[Route('/logout', name: 'logout', methods: ['POST'])]
-    public function logout(
-        Request $request,
-        AccessTokenRepository $tokenRepository,
-        EntityManagerInterface $entityManager
-    ): JsonResponse {
-        try {
-            $data = json_decode($request->getContent(), true);
+    // #[Route('/logout', name: 'logout', methods: ['POST'])]
+    // public function logout(
+    //     Request $request,
+    //     AccessTokenRepository $tokenRepository,
+    //     EntityManagerInterface $entityManager
+    // ): JsonResponse {
+    //     try {
+    //         $data = json_decode($request->getContent(), true);
             
-            if (!isset($data['token'])) {
-                return $this->json([
-                    'error' => 'Token requis'
-                ], 400);
-            }
+    //         if (!isset($data['token'])) {
+    //             return $this->json([
+    //                 'error' => 'Token requis'
+    //             ], 400);
+    //         }
 
-            $token = $tokenRepository->findOneBy(['token' => $data['token']]);
+    //         $token = $tokenRepository->findOneBy(['token' => $data['token']]);
             
-            if ($token) {
-                $entityManager->remove($token);
-                $entityManager->flush();
-            }
+    //         if ($token) {
+    //             $entityManager->remove($token);
+    //             $entityManager->flush();
+    //         }
 
-            return $this->json([
-                'message' => 'Déconnexion réussie'
-            ]);
+    //         return $this->json([
+    //             'message' => 'Déconnexion réussie'
+    //         ]);
 
-        } catch (\Exception $e) {
-            return $this->json([
-                'error' => 'Une erreur est survenue lors de la déconnexion'
-            ], 500);
-        }
-    }
+    //     } catch (\Exception $e) {
+    //         return $this->json([
+    //             'error' => 'Une erreur est survenue lors de la déconnexion'
+    //         ], 500);
+    //     }
+    // }
 }
