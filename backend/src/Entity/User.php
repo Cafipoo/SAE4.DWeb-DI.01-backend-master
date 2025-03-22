@@ -28,11 +28,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]
     private ?\DateTimeInterface $joinedDate = null;
 
-    #[ORM\Column(length: 255, nullable: true)]
-    private ?string $avatar = null;
+    #[ORM\Column(type: Types::BLOB, nullable: true)]
+    private $avatar = null;
 
-    #[ORM\Column(length: 255, nullable: true)]
-    private ?string $cover = null;
+    #[ORM\Column(type: Types::BLOB, nullable: true)]
+    private $cover = null;
 
     #[ORM\Column(length: 255, unique: true)]
     private ?string $email = null;
@@ -109,24 +109,24 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
-    public function getAvatar(): ?string
+    public function getAvatar()
     {
         return $this->avatar;
     }
 
-    public function setAvatar(?string $avatar): static
+    public function setAvatar($avatar): static
     {
         $this->avatar = $avatar;
 
         return $this;
     }
 
-    public function getCover(): ?string
+    public function getCover()
     {
         return $this->cover;
     }
 
-    public function setCover(?string $cover): static
+    public function setCover($cover): static
     {
         $this->cover = $cover;
 

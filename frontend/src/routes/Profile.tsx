@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useParams } from 'react-router-dom';
 import ProfileHeader from '../components/ProfileHeader';
 import ProfileInfo from '../components/ProfileInfo';
 import Tweet from '../components/Tweet';
@@ -6,6 +7,7 @@ import Sidebar from '../components/Sidebar';
 import { DataRequests, User, Post } from '../data/data-requests';
 
 const Profile = () => {
+  const { username } = useParams<{ username: string }>();
   const [user, setUser] = useState<User | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -17,6 +19,11 @@ const Profile = () => {
   // Fonction pour ajouter un nouveau tweet
   const addNewTweet = useCallback((newTweet: Post) => {
     setPosts(prevPosts => [newTweet, ...prevPosts]);
+  }, []);
+
+  // Fonction pour supprimer un tweet
+  const handleDeleteTweet = useCallback((postId: number) => {
+    setPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
   }, []);
 
   // Écouter l'événement de nouveau tweet
@@ -51,8 +58,14 @@ const Profile = () => {
     const fetchUserData = async () => {
       try {
         setLoading(true);
-        const userData = await DataRequests.getCurrentUserProfile();
-        setUser(userData);
+        if (!username) {
+          const userData = await DataRequests.getCurrentUserProfile();
+          setUser(userData);
+        }
+        else {
+          const userData = await DataRequests.getUserProfileByUsername(username);
+          setUser(userData);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Une erreur est survenue');
       } finally {
@@ -61,7 +74,7 @@ const Profile = () => {
     };
 
     fetchUserData();
-  }, []);
+  }, [username]);
 
   // Charger les posts avec pagination
   useEffect(() => {
@@ -165,6 +178,7 @@ const Profile = () => {
                       reposts: 0,
                       replies: 0
                     }}
+                    onDelete={handleDeleteTweet}
                   />
                 </div>
               ))

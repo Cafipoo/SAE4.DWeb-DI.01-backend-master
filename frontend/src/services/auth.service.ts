@@ -56,6 +56,7 @@ class AuthService {
 
         const data = await response.json();
         this.setAuthData(data.token, data.user.id);
+        localStorage.setItem('user', JSON.stringify(data.user));
         return data;
     }
 
@@ -139,7 +140,9 @@ class AuthService {
             try {
                 localStorage.removeItem(this.TOKEN_KEY);
                 localStorage.removeItem(this.USER_ID_KEY);
+                localStorage.removeItem('user');
                 window.location.href = 'http://localhost:8090/login';
+                alert('Vous êtes déconnecté');
             } catch (error) {
                 console.error('Erreur lors de la déconnexion:', error);
             }
@@ -169,6 +172,15 @@ class AuthService {
     static getUserId(): number | null {
         const userId = localStorage.getItem(this.USER_ID_KEY);
         return userId ? parseInt(userId) : null;
+    }
+
+    static getUsername(): string | null {
+        const user = localStorage.getItem('user');
+        if (user === null) {
+            return null;
+        }
+        const userData = JSON.parse(user);
+        return userData.username;
     }
 
     static async getUserData(): Promise<User> {

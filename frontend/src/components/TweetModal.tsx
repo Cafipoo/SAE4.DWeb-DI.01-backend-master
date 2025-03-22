@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import Button from './Button';
+import Button from '../ui/Button';
 import { DataRequests } from '../data/data-requests';
 
 interface TweetModalProps {

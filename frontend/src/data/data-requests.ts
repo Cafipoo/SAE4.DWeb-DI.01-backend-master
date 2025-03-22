@@ -40,8 +40,8 @@ export interface PostsResponse {
 
 export const DataRequests = {
     // Requêtes pour le profil utilisateur
-    async getUserProfile(userId: number): Promise<User> {
-        const response = await AuthService.authenticatedFetch(`/user/${userId}`);
+    async getUserProfile(username: string): Promise<User> {
+        const response = await AuthService.authenticatedFetch(`/profile/${username}`);
         if (!response.ok) {
             throw new Error('Erreur lors de la récupération des données utilisateur');
         }
@@ -75,11 +75,11 @@ export const DataRequests = {
     },
 
     async getCurrentUserProfile(): Promise<User> {
-        const userId = AuthService.getUserId();
-        if (!userId) {
+        const username = AuthService.getUsername();
+        if (!username) {
             throw new Error('Utilisateur non connecté');
         }
-        return this.getUserProfile(userId);
+        return this.getUserProfile(username);
     },
 
     async createPost(content: string): Promise<Post> {
@@ -108,6 +108,16 @@ export const DataRequests = {
         return data;
     },
 
+
+    async getUserProfileByUsername(username: string): Promise<User> {
+        const response = await AuthService.authenticatedFetch(`/profile/${username}`);
+        if (!response.ok) {
+            throw new Error('Erreur lors de la récupération des utilisateurs');
+        }
+        const data = await response.json();
+        return data;
+    },
+
     async updateUser(userId: number, userData: { username: string; name: string; bio: string | null }): Promise<User> {
         const response = await AuthService.authenticatedFetch(`/update/user/${userId}`, {
             method: 'POST',
@@ -121,5 +131,14 @@ export const DataRequests = {
 
         const data = await response.json();
         return data.user;
+    },
+
+    async deletePost(postId: number): Promise<void> {
+        const response = await AuthService.authenticatedFetch(`/posts/${postId}`, {
+            method: 'DELETE'
+        });
+        if (!response.ok) {
+            throw new Error('Erreur lors de la suppression du post');
+        }
     }
 }; 

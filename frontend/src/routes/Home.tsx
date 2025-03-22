@@ -2,18 +2,62 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Tweet from '../components/Tweet';
 import Sidebar from '../components/Sidebar';
 import { DataRequests, Post } from '../data/data-requests';
+import Icon from '../ui/Icon';
 
 const Home = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const observer = useRef<IntersectionObserver | null>(null);
 
   // Fonction pour ajouter un nouveau tweet
   const addNewTweet = useCallback((newTweet: Post) => {
     setPosts(prevPosts => [newTweet, ...prevPosts]);
   }, []);
+
+  // Fonction pour supprimer un tweet
+  const handleDeleteTweet = useCallback((postId: number) => {
+    setPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
+  }, []);
+
+  // Fonction pour charger les posts
+  const fetchPosts = useCallback(async (page: number = 1) => {
+    try {
+      setLoading(true);
+      const response = await DataRequests.getAllPosts(page);
+      
+      setPosts(prevPosts => {
+        if (page === 1) return response.posts;
+        const newPosts = response.posts.filter(newPost => 
+          !prevPosts.some(existingPost => existingPost.id === newPost.id)
+        );
+        return [...prevPosts, ...newPosts];
+      });
+      
+      setHasMore(response.hasMore);
+    } catch (error) {
+      console.error('Erreur lors de la récupération des posts:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Fonction pour rafraîchir les posts
+  const handleRefresh = async () => {
+    if (isRefreshing) return;
+    
+    try {
+      setIsRefreshing(true);
+      await fetchPosts(1);
+      setCurrentPage(1);
+    } catch (error) {
+      console.error('Erreur lors du rafraîchissement:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // Écouter l'événement de nouveau tweet
   useEffect(() => {
@@ -41,36 +85,27 @@ const Home = () => {
     if (node) observer.current.observe(node);
   }, [loading, hasMore]);
 
+  // Charger les posts initiaux
   useEffect(() => {
-    const fetchPosts = async () => {
-      try {
-        setLoading(true);
-        const response = await DataRequests.getAllPosts(currentPage);
-        
-        setPosts(prevPosts => {
-          const newPosts = response.posts.filter(newPost => 
-            !prevPosts.some(existingPost => existingPost.id === newPost.id)
-          );
-          return [...prevPosts, ...newPosts];
-        });
-        
-        setHasMore(response.hasMore);
-      } catch (error) {
-        console.error('Erreur lors de la récupération des posts:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchPosts();
-  }, [currentPage]);
+    fetchPosts(currentPage);
+  }, [currentPage, fetchPosts]);
 
   return (
     <div className="flex min-h-screen bg-black">
       <Sidebar />
       <main className="flex-1 border-l border-r border-gray-700 md:ml-72 max-w-[600px]">
-        <header className="sticky top-0 z-10 border-b border-gray-700 bg-black backdrop-blur">
+        <header className="sticky top-0 z-10 border-b border-gray-700 bg-black backdrop-blur flex justify-between items-center px-4">
           <h1 className="text-xl font-bold text-white p-4">Accueil</h1>
+          <div 
+            className="flex items-center gap-2 cursor-pointer hover:bg-gray-800 p-2 rounded-full transition-colors"
+            onClick={handleRefresh}
+          >
+            <Icon 
+              name="reload" 
+              className={`w-6 h-6 fill-white ${isRefreshing ? 'animate-spin' : ''}`} 
+            />
+            <p className="text-white">Actualiser</p>
+          </div>
         </header>
 
         <div className="divide-y divide-gray-700">
@@ -79,7 +114,10 @@ const Home = () => {
               key={post.id}
               ref={index === posts.length - 1 ? lastPostElementRef : undefined}
             >
-              <Tweet post={post} />
+              <Tweet 
+                post={post} 
+                onDelete={handleDeleteTweet}
+              />
             </div>
           ))}
         </div>

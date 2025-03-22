@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import AuthLayout from '../components/AuthLayout';
-import Input from '../components/Input';
-import Button from '../components/Button';
+import AuthLayout from '../ui/AuthLayout';
+import Input from '../ui/Input';
+import Button from '../ui/Button';
 import AuthService from '../services/auth.service';
 
 const AdminLogin = () => {

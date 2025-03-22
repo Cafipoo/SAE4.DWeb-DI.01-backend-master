@@ -17,7 +17,7 @@ class PostController extends AbstractController
     #[Route('/posts', name: 'posts.index', methods: ['GET'])]
     public function index(Request $request, PostRepository $postRepository): JsonResponse
     {
-        $postsPerPage = 1;
+        $postsPerPage = 5;
         $page = max(1, $request->query->getInt('page', 1));
         $offset = ($page - 1) * $postsPerPage;
 
@@ -29,6 +29,13 @@ class PostController extends AbstractController
         $posts = [];
         foreach ($paginator as $post) {
             $user = $post->getUser();
+            $avatar = $user->getAvatar();
+            // Convertir le BLOB en base64 s'il existe
+            $avatarBase64 = null;
+            if ($avatar) {
+                $avatarBase64 = base64_encode(stream_get_contents($avatar));
+            }
+            
             $posts[] = [
                 'id' => $post->getId(),
                 'content' => $post->getContent(),
@@ -37,7 +44,7 @@ class PostController extends AbstractController
                     'id' => $user->getId(),
                     'name' => $user->getName(),
                     'username' => $user->getUsername(),
-                    'avatar' => $user->getAvatar(),
+                    'avatar' => $avatarBase64,
                     'email' => $user->getEmail()
                 ]
             ];
@@ -99,6 +106,24 @@ class PostController extends AbstractController
             return $this->json([
                 'errors' => ['content' => 'Une erreur est survenue lors de la création du post']
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+
+    #[Route('/posts/{id}', name: 'posts.delete', methods: ['DELETE'])]
+    public function delete(int $id, Request $request, PostRepository $postRepository, UserRepository $userRepository): JsonResponse
+    {
+        try {
+            $post = $postRepository->find($id);
+            if (!$post) {
+                throw new \Exception('Post non trouvé');
+            }
+
+            $postRepository->remove($post, true);
+
+            return $this->json(['message' => 'Post supprimé avec succès'], Response::HTTP_OK);
+        } catch (\Exception $e) {
+            return $this->json(['errors' => ['message' => 'Une erreur est survenue lors de la suppression du post']], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 

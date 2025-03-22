@@ -1,18 +1,20 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import Icon from './Icon';
+import Icon from '../ui/Icon';
 import TweetModal from './TweetModal';
-import Button from './Button';
-import Logo from './Logo';
+import Button from '../ui/Button';
+import Logo from '../ui/Logo';
 import { DataRequests, User } from '../data/data-requests';
 import AuthService from '../services/auth.service';
+
 const navItems = [
   { icon: "home", label: "Accueil", path: "/home" },
-  { icon: "explore", label: "Explorer", path: "/explore" },
-  { icon: "notifications", label: "Notifications", path: "/notifications" },
-  { icon: "messages", label: "Messages", path: "/messages" },
-  { icon: "profile", label: "Profil", path: "/profile" },
-  { icon: "more", label: "Plus", path: "/more" }
+  // { icon: "explore", label: "Explorer", path: "/explore" },
+  // { icon: "notifications", label: "Notifications", path: "/notifications" },
+  // { icon: "messages", label: "Messages", path: "/messages" },
+  { icon: 'profile', label: "Profil", path: "/profile" },
+  { icon: "settings", label: "Paramètres", path: "/settings" },
+  // { icon: "more", label: "Plus", path: "/more" }
 ];
 
 const Sidebar = () => {
@@ -59,18 +61,29 @@ const Sidebar = () => {
               <Icon name={item.icon} className="w-7 h-7" />
             </Link>
           ))}
-          <button
-            onClick={() => setIsTweetModalOpen(true)}
-            className="p-2 text-white bg-blue-500 rounded-full hover:bg-blue-600"
-          >
-            <Icon name="compose" className="w-7 h-7" />
-          </button>
+          <Button
+              variant="default"
+              size="icon"
+              rounded="full"
+              onClick={() => setIsTweetModalOpen(true)}
+              className="p-2"
+            >
+              <Icon name="compose" className="w-7 h-7" />
+            </Button>
+            <Button
+                variant="default"
+                size="icon"
+                rounded="full"
+                onClick={() => AuthService.logout()}
+                className="p-2"
+              >
+                <Icon name="logout" className="w-7 h-7" />
+              </Button>
         </div>
       </nav>
 
       {/* Desktop Sidebar */}
       <div className="hidden md:flex flex-col fixed h-screen w-72 bg-black border-r border-gray-800">
-        {/* Logo avec alignement */}
         <div className="px-4">
           <Link to="/home" className="inline-block p-3 rounded-full hover:bg-red-900">
             <Logo />
@@ -98,42 +111,25 @@ const Sidebar = () => {
             ))}
           </ul>
 
-          {/* Tweet Button */}
-            <Button
-              variant="default"
-              size="xl"
-              rounded="full"
-              onClick={() => setIsTweetModalOpen(true)}
-              className="mt-2 px-2"
-            >
-              Tweet
-            </Button>
-            <Button
-              variant="default"
-              size="xl"
-              rounded="full"
-              onClick={() => AuthService.logout()}
-              className="mt-2 px-2"
-            >
-              Se déconnecter
-            </Button>
+          <Button
+            variant="default"
+            size="xl"
+            rounded="full"
+            onClick={() => setIsTweetModalOpen(true)}
+            className="mt-2 px-2"
+          >
+            Tweet
+          </Button>
+          <Button
+            variant="default"
+            size="xl"
+            rounded="full"
+            onClick={() => AuthService.logout()}
+            className="mt-2 px-2"
+          >
+            Se déconnecter
+          </Button>
         </nav>
-        
-
-        {/* <div className="p-4 mt-auto border-t border-gray-800">
-          <button className="flex items-center w-full gap-3 p-3 rounded-full hover:bg-gray-900 transition-colors">
-            <img
-              src={user.avatar || ''}
-              alt="Profile"
-              className="w-10 h-10 rounded-full"
-            />
-            <div className="flex-1 text-left">
-              <div className="font-bold text-white">{user.name}</div>
-              <div className="text-gray-500">@{user.username}</div>
-            </div>
-            <Icon name="more" className="w-5 h-5 text-gray-500" />
-          </button>
-        </div> */}
       </div>
 
       <TweetModal

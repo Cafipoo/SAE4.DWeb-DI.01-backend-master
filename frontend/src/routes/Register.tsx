@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import Logo from '../components/Logo';
-import Input from '../components/Input';
-import Button from '../components/Button';
-import AuthLayout from '../components/AuthLayout';
+import Logo from '../ui/Logo';
+import Input from '../ui/Input';
+import Button from '../ui/Button';
+import AuthLayout from '../ui/AuthLayout';
 import AuthService from '../services/auth.service';
 
 const Register = () => {
