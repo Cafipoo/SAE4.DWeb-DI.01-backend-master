@@ -59,6 +59,43 @@ const Home = () => {
     }
   };
 
+  useEffect(() => {
+    const setupAutoRefresh = () => {
+      if (localStorage.getItem("user") !== null) {
+        let user = JSON.parse(localStorage.getItem("user")!);
+        let reloading = user.reloading;
+        if (reloading == null) {
+          reloading = 0;
+        }
+        if (reloading > 0) {
+          const intervalId = setInterval(() => {
+            handleRefresh();
+            console.log("autoRefresh");
+          }, reloading * (1000 * 60));
+          
+          // Nettoyer l'intervalle précédent
+          return () => clearInterval(intervalId);
+        }
+      }
+    };
+
+    // Configuration initiale du rafraîchissement
+    const cleanup = setupAutoRefresh();
+
+    // Écouter les changements de paramètres
+    const handleReloadingUpdate = (event: CustomEvent) => {
+      if (cleanup) cleanup();
+      setupAutoRefresh();
+    };
+
+    window.addEventListener('reloadingUpdated', handleReloadingUpdate as EventListener);
+
+    return () => {
+      if (cleanup) cleanup();
+      window.removeEventListener('reloadingUpdated', handleReloadingUpdate as EventListener);
+    };
+  }, [handleRefresh]);
+
   // Écouter l'événement de nouveau tweet
   useEffect(() => {
     const handleNewTweet = (event: CustomEvent<Post>) => {
@@ -91,9 +128,11 @@ const Home = () => {
   }, [currentPage, fetchPosts]);
 
   return (
-    <div className="flex min-h-screen bg-black">
-      <Sidebar />
-      <main className="flex-1 border-l border-r border-gray-700 md:ml-72 max-w-[600px]">
+    <div className="flex justify-center gap-4 min-h-screen bg-black">
+      <div className="flex">
+        <Sidebar />
+      </div>
+        <main className="flex-1 border-l border-r border-gray-700 md:ml-72 max-w-[600px]">
         <header className="sticky top-0 z-10 border-b border-gray-700 bg-black backdrop-blur flex justify-between items-center px-4">
           <h1 className="text-xl font-bold text-white p-4">Accueil</h1>
           <div 

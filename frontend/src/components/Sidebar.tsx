@@ -62,7 +62,7 @@ const Sidebar = () => {
             </Link>
           ))}
           <Button
-              variant="default"
+              variant="tertiary"
               size="icon"
               rounded="full"
               onClick={() => setIsTweetModalOpen(true)}
@@ -83,7 +83,7 @@ const Sidebar = () => {
       </nav>
 
       {/* Desktop Sidebar */}
-      <div className="hidden md:flex flex-col fixed h-screen w-72 bg-black border-r border-gray-800">
+      <div className="hidden md:flex flex-col fixed h-screen w-72 bg-black border-gray-800">
         <div className="px-4">
           <Link to="/home" className="inline-block p-3 rounded-full hover:bg-red-900">
             <Logo />
@@ -112,7 +112,7 @@ const Sidebar = () => {
           </ul>
 
           <Button
-            variant="default"
+            variant="tertiary"
             size="xl"
             rounded="full"
             onClick={() => setIsTweetModalOpen(true)}

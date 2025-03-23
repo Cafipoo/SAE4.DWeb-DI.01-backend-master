@@ -7,7 +7,7 @@ import Profile from './routes/Profile';
 import AdminLogin from './routes/AdminLogin';
 import Backoffice from './routes/Backoffice';
 import Home from './routes/Home';
-// import Settings from './routes/Settings';
+import Setting from './routes/Setting';
 import { Navigate } from 'react-router-dom';
 
 // let user = localStorage.getItem('user');
@@ -25,7 +25,7 @@ function App() {
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/profile/:username" element={<Profile />} />
       <Route path="/profile" element={<Profile />} />
-      {/* <Route path="/settings" element={<Settings />} /> */}
+      <Route path="/settings" element={<Setting />} />
       <Route path="/admin" element={<AdminLogin />} />
       <Route path="/backoffice" element={<Backoffice />} />
       <Route path="/home" element={<Home />} />

@@ -9,7 +9,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
         const token = localStorage.getItem('auth_token');
         if (!token) {
             if (location.pathname !== '/register' && location.pathname !== '/login' && location.pathname !== '/admin') {
-                if (location.pathname === '/backoffice' || location.pathname === '/admin') {
+                if (location.pathname === '/backoffice') {
                     navigate('/admin');
                 }
                 else {

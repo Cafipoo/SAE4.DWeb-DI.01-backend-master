@@ -5,6 +5,7 @@ import ProfileInfo from '../components/ProfileInfo';
 import Tweet from '../components/Tweet';
 import Sidebar from '../components/Sidebar';
 import { DataRequests, User, Post } from '../data/data-requests';
+import AuthService from '../services/auth.service';
 
 const Profile = () => {
   const { username } = useParams<{ username: string }>();
@@ -18,8 +19,12 @@ const Profile = () => {
 
   // Fonction pour ajouter un nouveau tweet
   const addNewTweet = useCallback((newTweet: Post) => {
-    setPosts(prevPosts => [newTweet, ...prevPosts]);
-  }, []);
+    const currentUser = AuthService.getUsername();
+    // N'ajouter le tweet que si on est sur le profil de l'auteur du tweet
+    if (currentUser === username) {
+      setPosts(prevPosts => [newTweet, ...prevPosts]);
+    }
+  }, [username]);
 
   // Fonction pour supprimer un tweet
   const handleDeleteTweet = useCallback((postId: number) => {
@@ -85,6 +90,8 @@ const Profile = () => {
         setLoadingMore(true);
         const response = await DataRequests.getUserPosts(user.id, currentPage);
         
+        // Si c'est un nouveau tweet et que ce n'est pas le profil de l'utilisateur actuel,
+        // on ne l'ajoute pas
         setPosts(prevPosts => {
           const newPosts = response.posts.filter(newPost => 
             !prevPosts.some(existingPost => existingPost.id === newPost.id)
@@ -172,7 +179,8 @@ const Profile = () => {
                       author: {
                         name: user.name,
                         username: user.username,
-                        avatar: user.avatar || ''
+                        avatar: user.avatar || '',
+                        banned: user.banned
                       },
                       likes: 0,
                       reposts: 0,
