@@ -55,11 +55,12 @@ const Backoffice = () => {
       const userData = {
         name: updatedUser.name,
         username: updatedUser.username,
-        bio: updatedUser.bio || ''
+        bio: updatedUser.bio || '',
+        banned: updatedUser.banned || false
       };
-      
+
+      console.log('Données envoyées:', userData);
       await DataRequests.updateUser(updatedUser.id, userData);
-      
       // Rafraîchir la liste des utilisateurs
       const data = await DataRequests.getAdminUsers(currentPage);
       setUsers(data.users || []);
@@ -102,6 +103,7 @@ const Backoffice = () => {
                       <th className="text-left py-3 px-4">Email</th>
                       <th className="text-left py-3 px-4">Date d'inscription</th>
                       <th className="text-left py-3 px-4">Bio</th>
+                      <th className="text-left py-3 px-4">Banni</th>
                       <th className="text-left py-3 px-4">Actions</th>
                     </tr>
                   </thead>
@@ -115,6 +117,7 @@ const Backoffice = () => {
                           <td className="py-3 px-4">{user.email}</td>
                           <td className="py-3 px-4">{user.joined_date}</td>
                           <td className="py-3 px-4">{user.bio || '-'}</td>
+                          <td className="py-3 px-4">{user.banned ? 'Oui' : 'Non'}</td>
                           <td className="py-3 px-4">
                             <button
                               onClick={() => handleEdit(user)}
@@ -206,6 +209,24 @@ const Backoffice = () => {
                   className="w-full bg-gray-800 rounded px-3 py-2"
                   rows={3}
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1 text-white">Bannissement</label>
+                <select
+                  value={editingUser.banned === true ? "true" : "false"}
+                  onChange={(e) => {
+                    if (editingUser) {
+                      setEditingUser({
+                        ...editingUser,
+                        banned: e.target.value === "true"
+                      });
+                    }
+                  }}
+                  className="w-full bg-gray-800 text-white rounded px-3 py-2"
+                >
+                  <option value="false">Non</option>
+                  <option value="true">Oui</option>
+                </select>
               </div>
               <div className="flex justify-end gap-3">
                 <button

@@ -49,6 +49,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $apiToken = null;
 
+    #[ORM\Column(nullable: true)]
+    private ?int $reloading = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?bool $banned = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -201,6 +207,30 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setApiToken(?string $apiToken): static
     {
         $this->apiToken = $apiToken;
+
+        return $this;
+    }
+
+    public function getReloading(): ?int
+    {
+        return $this->reloading;
+    }
+
+    public function setReloading(?int $reloading): static
+    {
+        $this->reloading = $reloading;
+
+        return $this;
+    }
+
+    public function isBanned(): ?bool
+    {
+        return $this->banned;
+    }
+
+    public function setBanned(?bool $banned): static
+    {
+        $this->banned = $banned;
 
         return $this;
     }

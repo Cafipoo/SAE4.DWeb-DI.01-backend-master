@@ -101,10 +101,17 @@ class SecurityController extends AbstractController
 
             $user = $userRepository->findOneBy(['email' => $data['email']]);
 
+
             if (!$user || !$passwordHasher->isPasswordValid($user, $data['password'])) {
                 return $this->json([
                     'error' => 'Email ou mot de passe incorrect'
                 ], 401);
+            }
+
+            if ($user->isBanned()) {
+                return $this->json([
+                    'error' => 'Votre compte a été banni'
+                ], 403);
             }
 
             // Génération d'un nouveau token API
@@ -118,7 +125,8 @@ class SecurityController extends AbstractController
                     'email' => $user->getEmail(),
                     'username' => $user->getUsername(),
                     'name' => $user->getName(),
-                    'avatar' => $user->getAvatar()
+                    'avatar' => $user->getAvatar(),
+                    'reloading' => $user->getReloading()
                 ]
             ]);
 

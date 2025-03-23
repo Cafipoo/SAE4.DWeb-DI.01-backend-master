@@ -9,6 +9,7 @@ export interface User {
     avatar: string | null;
     cover: string | null;
     bio: string | null;
+    banned: boolean;
 }
 
 export interface AdminApiResponse {
@@ -29,6 +30,7 @@ export interface Post {
         name: string;
         username: string;
         avatar: string;
+        banned: boolean;
     };
 }
 
@@ -76,6 +78,7 @@ export const DataRequests = {
 
     async getCurrentUserProfile(): Promise<User> {
         const username = AuthService.getUsername();
+        console.log(username);
         if (!username) {
             throw new Error('Utilisateur non connecté');
         }
@@ -118,7 +121,7 @@ export const DataRequests = {
         return data;
     },
 
-    async updateUser(userId: number, userData: { username: string; name: string; bio: string | null }): Promise<User> {
+    async updateUser(userId: number, userData: { username: string; name: string; bio: string | null, banned: boolean }): Promise<User> {
         const response = await AuthService.authenticatedFetch(`/update/user/${userId}`, {
             method: 'POST',
             body: JSON.stringify(userData)
@@ -129,6 +132,18 @@ export const DataRequests = {
             throw new Error(errorData.error || 'Erreur lors de la mise à jour de l\'utilisateur');
         }
 
+        const data = await response.json();
+        return data.user;
+    },
+    async updateSetting (userId: number, reloading: string): Promise<User> {
+        const response = await AuthService.authenticatedFetch(`/update/reload/${userId}`, {
+            method: 'POST',
+            body: JSON.stringify({ reloading })
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Erreur lors de la mise à jour des paramètres');
+        }
         const data = await response.json();
         return data.user;
     },

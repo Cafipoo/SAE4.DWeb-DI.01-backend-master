@@ -10,6 +10,7 @@ export interface User {
     joinedDate: string;
     birthdate: string | null;
     bio: string | null;
+    banned: boolean;
 }
 
 export interface AuthResponse {
@@ -20,6 +21,7 @@ export interface AuthResponse {
         username: string;
         name: string;
         avatar?: string;
+        banned: boolean;
     };
 }
 
@@ -50,8 +52,14 @@ class AuthService {
             body: JSON.stringify({ email, password }),
         });
 
-        if (!response.ok) {
+        if (response.status === 403) {
+            throw new Error('Votre compte a été banni');
+        }
+        else if (response.status === 401) {
             throw new Error('Identifiants invalides');
+        }
+        else if (!response.ok) {
+            throw new Error('Une erreur est survenue');
         }
 
         const data = await response.json();
@@ -89,6 +97,7 @@ class AuthService {
         password: string;
         username: string;
         name: string;
+        birthDate: string;
     }): Promise<AuthResponse> {
         this.clearAuthData();
 
