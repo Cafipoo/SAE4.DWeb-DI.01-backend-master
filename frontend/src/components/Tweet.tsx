@@ -150,7 +150,9 @@ const Tweet = ({ post, onDelete }: TweetProps) => {
                     </Button>
                   )}
                 </div>
-                <p className="text-white mb-3">{post.content}</p>
+                <div>
+                  <p className="text-white mb-3 break-all break-words whitespace-pre-wrap overflow-hidden max-w-full">{post.content}</p>
+                </div>
                 {post.media && (
                   <div className="mb-3 rounded-2xl overflow-hidden">
                     <img
