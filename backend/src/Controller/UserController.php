@@ -17,31 +17,25 @@ class UserController extends AbstractController
     #[Route('/users', name: 'users.index', methods: ['GET'])]
     public function index(Request $request, UserRepository $userRepository): JsonResponse
     {
-        // Réduire le nombre de posts par page pour tester la pagination
-        $usersPerPage = 5; // On met 2 au lieu de 50 pour tester avec peu de données
+        $usersPerPage = 5;
         $page = max(1, $request->query->getInt('page', 1));
         $offset = ($page - 1) * $usersPerPage;
 
         $paginator = $userRepository->paginateAllOrderedByLatest($offset, $usersPerPage);
         
-        // Calculer le nombre total de pages
         $totalUsers = count($paginator);
         $maxPages = ceil($totalUsers / $usersPerPage);
 
-        // Transformer les users en tableau
         $users = [];
         foreach ($paginator as $user) {
-            // Convertir avatar et cover en base64 s'ils existent
             $avatar = $user->getAvatar();
             $cover = $user->getCover();
-            $avatarBase64 = null;
-            $coverBase64 = null;
 
             if ($avatar) {
-                $avatarBase64 = base64_encode(stream_get_contents($avatar));
+                $avatar = preg_replace('/[^A-Za-z0-9\/+=]/', '', $avatar);
             }
             if ($cover) {
-                $coverBase64 = base64_encode(stream_get_contents($cover));
+                $cover = preg_replace('/[^A-Za-z0-9\/+=]/', '', $cover);
             }
 
             $users[] = [
@@ -50,20 +44,13 @@ class UserController extends AbstractController
                 'name' => $user->getName(),
                 'email' => $user->getEmail(),
                 'joined_date' => $user->getJoinedDate()->format('Y-m-d H:i:s'),
-                'avatar' => $avatarBase64,
-                'cover' => $coverBase64,
+                'avatar' => $avatar,
+                'cover' => $cover,
                 'bio' => $user->getBio(),
-                // 'location' => $post->getLocation(),
-                // 'website' => $post->getWebsite(),
-                // 'stats' => [
-                //     'followers' => $post->getFollowers(),
-                //     'following' => $post->getFollowing(),
-                //     'users' => $post->getusers()
-                // ]
+                'banned' => $user->isBanned()
             ];
         }
 
-        // Calculer les pages précédente et suivante
         $previousPage = ($page > 1) ? $page - 1 : null;
         $nextPage = ($page < $maxPages) ? $page + 1 : null;
 
@@ -85,21 +72,7 @@ class UserController extends AbstractController
             return $this->json(['error' => 'User not found'], Response::HTTP_NOT_FOUND);
         }
 
-        // Récupérer les posts de l'utilisateur
         $posts = $postRepository->findBy(['user' => $user], ['created_at' => 'DESC']);
-
-        // Convertir avatar et cover en base64 s'ils existent
-        $avatar = $user->getAvatar();
-        $cover = $user->getCover();
-        $avatarBase64 = null;
-        $coverBase64 = null;
-
-        if ($avatar) {
-            $avatarBase64 = base64_encode(stream_get_contents($avatar));
-        }
-        if ($cover) {
-            $coverBase64 = base64_encode(stream_get_contents($cover));
-        }
 
         $userData = [
             'id' => $user->getId(),
@@ -107,8 +80,8 @@ class UserController extends AbstractController
             'name' => $user->getName(),
             'email' => $user->getEmail(),
             'joined_date' => $user->getJoinedDate()->format('Y-m-d H:i:s'),
-            'avatar' => $avatarBase64,
-            'cover' => $coverBase64,
+            'avatar' => $user->getAvatar(),
+            'cover' => $user->getCover(),
             'bio' => $user->getBio(),
             'posts' => array_map(function($post) {
                 return [
@@ -129,7 +102,6 @@ class UserController extends AbstractController
             return $this->json(['error' => 'User not found'], Response::HTTP_NOT_FOUND);
         }
 
-        // Récupérer les posts de l'utilisateur
         $posts = $postRepository->findBy(['user' => $user], ['created_at' => 'DESC']);
 
         $userData = [
@@ -138,10 +110,11 @@ class UserController extends AbstractController
             'name' => $user->getName(),
             'email' => $user->getEmail(),
             'joined_date' => $user->getJoinedDate()->format('Y-m-d H:i:s'),
-            'avatar' => $user->getAvatar() ? base64_encode(stream_get_contents($user->getAvatar())) : null,
-            'cover' => $user->getCover() ? base64_encode(stream_get_contents($user->getCover())) : null,
+            'avatar' => $user->getAvatar(),
+            'cover' => $user->getCover(),
             'bio' => $user->getBio(),
             'posts' => array_map(function($post) {
+                $postAvatar = $post->getUser()->getAvatar();
                 return [
                     'id' => $post->getId(),
                     'content' => $post->getContent(),
@@ -149,7 +122,8 @@ class UserController extends AbstractController
                     'author' => [
                         'name' => $post->getUser()->getName(),
                         'username' => $post->getUser()->getUsername(),
-                        'avatar' => $post->getUser()->getAvatar() ? base64_encode(stream_get_contents($post->getUser()->getAvatar())) : null
+                        'avatar' => $postAvatar,
+                        'banned' => $post->getUser()->isBanned()
                     ]
                 ];
             }, $posts)
@@ -200,13 +174,14 @@ class UserController extends AbstractController
             }
 
             // Vérification de la présence des champs requis
-            if (!isset($data['username']) || !isset($data['name']) || !isset($data['bio'])) {
+            if (!isset($data['username']) || !isset($data['name']) || !isset($data['bio']) || !isset($data['banned'])) {
                 return $this->json(['error' => 'Champs requis manquants'], Response::HTTP_BAD_REQUEST);
             }
 
             $user->setUsername($data['username']);
             $user->setName($data['name']);
             $user->setBio($data['bio']);
+            $user->setBanned($data['banned']);
             
             $entityManager->persist($user);
             $entityManager->flush();
@@ -217,7 +192,8 @@ class UserController extends AbstractController
                     'id' => $user->getId(),
                     'username' => $user->getUsername(),
                     'name' => $user->getName(),
-                    'bio' => $user->getBio()
+                    'bio' => $user->getBio(),
+                    'banned' => $user->isBanned()
                 ]
             ]);
 
@@ -228,6 +204,67 @@ class UserController extends AbstractController
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
+
+    #[Route('/update/reloading/{id}', name: 'user.reloading', methods: ['POST'])]
+    public function reloading(
+        Request $request, 
+        UserRepository $userRepository, 
+        EntityManagerInterface $entityManager,
+        int $id
+    ): JsonResponse {
+        // Récupérer le token du header Authorization
+        $authHeader = $request->headers->get('Authorization');
+        if (!$authHeader) {
+            return $this->json(['error' => 'Token manquant'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        // Extraire le token (retirer "Bearer " du début)
+        $token = str_replace('Bearer ', '', $authHeader);
+        
+        // Trouver l'utilisateur par le token
+        $authenticatedUser = $userRepository->findOneBy(['apiToken' => $token]);
+        if (!$authenticatedUser) {
+            return $this->json(['error' => 'Token invalide'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        // Récupérer l'utilisateur à modifier
+        $user = $userRepository->find($id);
+        if (!$user) {
+            return $this->json(['error' => 'Utilisateur non trouvé'], Response::HTTP_NOT_FOUND);
+        }
+
+        try {
+            $data = json_decode($request->getContent(), true);
+            if ($data === null) {
+                return $this->json(['error' => 'Données JSON invalides'], Response::HTTP_BAD_REQUEST);
+            }
+
+            // Vérification de la présence des champs requis
+            if (!isset($data['reloading'])) {
+                return $this->json(['error' => 'Champs requis manquants'], Response::HTTP_BAD_REQUEST);
+            }
+
+            $user->setReloading($data['reloading']);
+            
+            $entityManager->persist($user);
+            $entityManager->flush();
+
+            return $this->json([
+                'message' => 'Utilisateur mis à jour avec succès',
+                'user' => [
+                    'reloading' => $user->getReloading()
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return $this->json([
+                'error' => 'Une erreur est survenue lors de la mise à jour de l\'utilisateur',
+                'message' => $e->getMessage()
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+
 
     #[Route('/user/{id}/posts', name: 'user.posts', methods: ['GET'])]
     public function getUserPosts(Request $request, UserRepository $userRepository, PostRepository $postRepository, int $id): JsonResponse
@@ -261,143 +298,4 @@ class UserController extends AbstractController
         ]);
     }
 
-    #[Route('/profile/avatar/{username}', name: 'user.update_avatar', methods: ['POST'])]
-    public function updateAvatar(
-        Request $request,
-        UserRepository $userRepository,
-        EntityManagerInterface $entityManager,
-        string $username
-    ): JsonResponse {
-        // Vérifier si l'utilisateur existe
-        $user = $userRepository->findOneBy(['username' => $username]);
-        if (!$user) {
-            return new JsonResponse(
-                ['error' => 'Utilisateur non trouvé'],
-                Response::HTTP_NOT_FOUND,
-                ['Content-Type' => 'application/json']
-            );
-        }
-
-        // Vérifier si un fichier a été envoyé
-        $imageFile = $request->files->get('avatar');
-        if (!$imageFile) {
-            return new JsonResponse(
-                ['error' => 'Aucune image fournie'],
-                Response::HTTP_BAD_REQUEST,
-                ['Content-Type' => 'application/json']
-            );
-        }
-
-        try {
-            // Vérifier le type de fichier
-            $mimeType = $imageFile->getMimeType();
-            if (!in_array($mimeType, ['image/jpeg', 'image/png', 'image/gif'])) {
-                return new JsonResponse(
-                    ['error' => 'Format d\'image non supporté'],
-                    Response::HTTP_BAD_REQUEST,
-                    ['Content-Type' => 'application/json']
-                );
-            }
-
-            // Lire le contenu de l'image
-            $imageContent = file_get_contents($imageFile->getPathname());
-            if ($imageContent === false) {
-                throw new \Exception('Impossible de lire le contenu de l\'image');
-            }
-
-            $user->setAvatar($imageContent);
-            $entityManager->persist($user);
-            $entityManager->flush();
-
-            return new JsonResponse(
-                [
-                    'message' => 'Avatar mis à jour avec succès',
-                    'avatar' => base64_encode($imageContent),
-                    'mimeType' => $mimeType
-                ],
-                Response::HTTP_OK,
-                ['Content-Type' => 'application/json']
-            );
-
-        } catch (\Exception $e) {
-            return new JsonResponse(
-                [
-                    'error' => 'Une erreur est survenue lors de la mise à jour de l\'avatar',
-                    'message' => $e->getMessage()
-                ],
-                Response::HTTP_INTERNAL_SERVER_ERROR,
-                ['Content-Type' => 'application/json']
-            );
-        }
-    }
-
-    #[Route('/profile/{username}/cover', name: 'user.update_cover', methods: ['POST'])]
-    public function updateCover(
-        Request $request,
-        UserRepository $userRepository,
-        EntityManagerInterface $entityManager,
-        string $username
-    ): JsonResponse {
-        // Vérifier si l'utilisateur existe
-        $user = $userRepository->findOneBy(['username' => $username]);
-        if (!$user) {
-            return new JsonResponse(
-                ['error' => 'Utilisateur non trouvé'],
-                Response::HTTP_NOT_FOUND,
-                ['Content-Type' => 'application/json']
-            );
-        }
-
-        // Vérifier si un fichier a été envoyé
-        $imageFile = $request->files->get('cover');
-        if (!$imageFile) {
-            return new JsonResponse(
-                ['error' => 'Aucune image fournie'],
-                Response::HTTP_BAD_REQUEST,
-                ['Content-Type' => 'application/json']
-            );
-        }
-
-        try {
-            // Vérifier le type de fichier
-            $mimeType = $imageFile->getMimeType();
-            if (!in_array($mimeType, ['image/jpeg', 'image/png', 'image/gif'])) {
-                return new JsonResponse(
-                    ['error' => 'Format d\'image non supporté'],
-                    Response::HTTP_BAD_REQUEST,
-                    ['Content-Type' => 'application/json']
-                );
-            }
-
-            // Lire le contenu de l'image
-            $imageContent = file_get_contents($imageFile->getPathname());
-            if ($imageContent === false) {
-                throw new \Exception('Impossible de lire le contenu de l\'image');
-            }
-
-            $user->setCover($imageContent);
-            $entityManager->persist($user);
-            $entityManager->flush();
-
-            return new JsonResponse(
-                [
-                    'message' => 'Cover mis à jour avec succès',
-                    'cover' => base64_encode($imageContent),
-                    'mimeType' => $mimeType
-                ],
-                Response::HTTP_OK,
-                ['Content-Type' => 'application/json']
-            );
-
-        } catch (\Exception $e) {
-            return new JsonResponse(
-                [
-                    'error' => 'Une erreur est survenue lors de la mise à jour de la cover',
-                    'message' => $e->getMessage()
-                ],
-                Response::HTTP_INTERNAL_SERVER_ERROR,
-                ['Content-Type' => 'application/json']
-            );
-        }
-    }
 }

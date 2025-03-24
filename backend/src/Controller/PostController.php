@@ -5,6 +5,8 @@ namespace App\Controller;
 use App\Entity\Post;
 use App\Repository\PostRepository;
 use App\Repository\UserRepository;
+use App\Repository\PostInteractionRepository;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -29,12 +31,15 @@ class PostController extends AbstractController
         $posts = [];
         foreach ($paginator as $post) {
             $user = $post->getUser();
-            $avatar = $user->getAvatar();
-            // Convertir le BLOB en base64 s'il existe
-            $avatarBase64 = null;
-            if ($avatar) {
-                $avatarBase64 = base64_encode(stream_get_contents($avatar));
-            }
+            
+            // Récupérer les likes pour ce post
+            $likes = $post->getPostInteractions()->filter(function($interaction) {
+                return $interaction->isLikes() === true;
+            });
+            
+            $likedByIds = $likes->map(function($interaction) {
+                return $interaction->getIdUser()->getId();
+            })->toArray();
             
             $posts[] = [
                 'id' => $post->getId(),
@@ -44,9 +49,12 @@ class PostController extends AbstractController
                     'id' => $user->getId(),
                     'name' => $user->getName(),
                     'username' => $user->getUsername(),
-                    'avatar' => $avatarBase64,
-                    'email' => $user->getEmail()
-                ]
+                    'avatar' => $user->getAvatar(),
+                    'email' => $user->getEmail(),
+                    'banned' => $user->isBanned()
+                ],
+                'likes_count' => count($likes),
+                'liked_by' => $likedByIds
             ];
         }
 
@@ -82,6 +90,9 @@ class PostController extends AbstractController
             if (!$user) {
                 throw new \Exception('Utilisateur non trouvé');
             }
+            if ($user->isBanned()) {
+                return $this->json(['errors' => ['content' => 'Vous ne pouvez pas publier de message car vous êtes banni']], 403);
+            }
 
             $post = new Post();
             $post->setContent($data['content']);
@@ -99,7 +110,8 @@ class PostController extends AbstractController
                     'name' => $user->getName(),
                     'username' => $user->getUsername(),
                     'avatar' => $user->getAvatar(),
-                    'email' => $user->getEmail()
+                    'email' => $user->getEmail(),
+                    'banned' => $user->isBanned()
                 ]
             ], Response::HTTP_CREATED);
         } catch (\Exception $e) {
@@ -111,17 +123,31 @@ class PostController extends AbstractController
 
 
     #[Route('/posts/{id}', name: 'posts.delete', methods: ['DELETE'])]
-    public function delete(int $id, Request $request, PostRepository $postRepository, UserRepository $userRepository): JsonResponse
-    {
+    public function delete(
+        int $id, 
+        Request $request, 
+        PostRepository $postRepository,
+        UserRepository $userRepository,
+        PostInteractionRepository $postInteractionRepository,
+        EntityManagerInterface $entityManager
+    ): JsonResponse {
         try {
             $post = $postRepository->find($id);
             if (!$post) {
                 throw new \Exception('Post non trouvé');
             }
 
+            // Supprimer d'abord toutes les interactions liées au post
+            $interactions = $postInteractionRepository->findBy(['post' => $post]);
+            foreach ($interactions as $interaction) {
+                $entityManager->remove($interaction);
+            }
+            $entityManager->flush();
+
+            // Ensuite supprimer le post
             $postRepository->remove($post, true);
 
-            return $this->json(['message' => 'Post supprimé avec succès'], Response::HTTP_OK);
+            return $this->json(['message' => 'Post et interactions supprimés avec succès'], Response::HTTP_OK);
         } catch (\Exception $e) {
             return $this->json(['errors' => ['message' => 'Une erreur est survenue lors de la suppression du post']], Response::HTTP_INTERNAL_SERVER_ERROR);
         }

@@ -52,21 +52,26 @@ const Backoffice = () => {
   const handleSave = async (updatedUser: User) => {
     try {
       setError(null);
+      console.log('User avant traitement:', updatedUser);
       const userData = {
         name: updatedUser.name,
         username: updatedUser.username,
-        bio: updatedUser.bio || '',
-        banned: updatedUser.banned || false
+        bio: updatedUser.bio === null ? null : String(updatedUser.bio),
+        banned: updatedUser.banned === true
       };
 
-      console.log('Données envoyées:', userData);
+      console.log('Type de bio:', typeof userData.bio);
+      console.log('Type de banned:', typeof userData.banned);
+      console.log('Valeur de banned:', userData.banned);
+      console.log('Données à envoyer:', userData);
+      
       await DataRequests.updateUser(updatedUser.id, userData);
       // Rafraîchir la liste des utilisateurs
       const data = await DataRequests.getAdminUsers(currentPage);
       setUsers(data.users || []);
       setEditingUser(null);
     } catch (err: any) {
-      console.error('Erreur de mise à jour:', err);
+      console.error('Erreur complète:', err);
       setError(err.message || 'Une erreur est survenue lors de la mise à jour');
     }
   };
@@ -213,14 +218,14 @@ const Backoffice = () => {
               <div>
                 <label className="block text-sm font-medium mb-1 text-white">Bannissement</label>
                 <select
-                  value={editingUser.banned === true ? "true" : "false"}
+                  value={editingUser.banned ? "true" : "false"}
                   onChange={(e) => {
-                    if (editingUser) {
-                      setEditingUser({
-                        ...editingUser,
-                        banned: e.target.value === "true"
-                      });
-                    }
+                    const newBannedValue = e.target.value === "true";
+                    console.log('Nouvelle valeur de banned:', newBannedValue);
+                    setEditingUser({
+                      ...editingUser,
+                      banned: newBannedValue
+                    });
                   }}
                   className="w-full bg-gray-800 text-white rounded px-3 py-2"
                 >

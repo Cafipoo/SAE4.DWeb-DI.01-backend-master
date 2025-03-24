@@ -128,12 +128,12 @@ const Home = () => {
   }, [currentPage, fetchPosts]);
 
   return (
-    <div className="flex justify-center gap-4 min-h-screen bg-black">
+    <div className="flex justify-center md:gap-4 min-h-screen bg-black">
       <div className="flex">
         <Sidebar />
       </div>
-        <main className="flex-1 border-l border-r border-gray-700 md:ml-72 max-w-[600px]">
-        <header className="sticky top-0 z-10 border-b border-gray-700 bg-black backdrop-blur flex justify-between items-center px-4">
+        <main className="flex-1 border-l border-r md:border-gray-700 md:ml-72 md:max-w-[600px]">
+        <header className="sticky top-0 z-10 border-b border-gray-700 backdrop-blur flex justify-between items-center px-4">
           <h1 className="text-xl font-bold text-white p-4">Accueil</h1>
           <div 
             className="flex items-center gap-2 cursor-pointer hover:bg-gray-800 p-2 rounded-full transition-colors"

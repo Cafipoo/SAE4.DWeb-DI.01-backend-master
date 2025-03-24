@@ -48,14 +48,14 @@ const Sidebar = () => {
   return (
     <>
       {/* Mobile Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-black border-t border-gray-800 md:hidden z-50">
+      <nav className="fixed bottom-0 left-0 right-0 border-t border-gray-800 md:hidden z-50">
         <div className="flex justify-around items-center h-16">
           {navItems.slice(0, 4).map((item) => (
             <Link
               key={item.path}
               to={item.path}
               className={`p-2 ${
-                location.pathname === item.path ? 'text-white' : 'text-gray-500'
+                location.pathname === item.path ? 'text-white' : 'text-black'
               }`}
             >
               <Icon name={item.icon} className="w-7 h-7" />
@@ -83,7 +83,7 @@ const Sidebar = () => {
       </nav>
 
       {/* Desktop Sidebar */}
-      <div className="hidden md:flex flex-col fixed h-screen w-72 bg-black border-gray-800">
+      <div className="hidden md:flex flex-col fixed h-screen w-72 border-gray-800">
         <div className="px-4">
           <Link to="/home" className="inline-block p-3 rounded-full hover:bg-red-900">
             <Logo />

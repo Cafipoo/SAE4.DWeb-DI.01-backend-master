@@ -12,26 +12,41 @@ interface TweetProps {
     content: string;
     created_at: string;
     author?: {
+      id: number;
       name: string;
       username: string;
       avatar: string;
       banned: boolean;
     };
-    likes?: number;
-    reposts?: number;
-    replies?: number;
+    likes_count?: number;
+    liked_by?: number[];
     media?: {
-      type: string;
       url: string;
     };
+    reposts?: number;
+    replies?: number;
+    isLiked?: boolean;
+    isFollowed?: boolean;
   };
   onDelete?: (postId: number) => void;
 }
 
 const Tweet = ({ post, onDelete }: TweetProps) => {
   let name = localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")!) : null;
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isLiked, setIsLiked] = useState(false);
+  const [isFollowed, setIsFollowed] = useState(post.isFollowed || false);
+  const [likesCount, setLikesCount] = useState(post.likes_count || 0);
   
+  useEffect(() => {
+    if (name.id) {
+      // Vérifier si liked_by est un tableau avant d'utiliser includes
+      const likedByArray = Array.isArray(post.liked_by) ? post.liked_by : [];
+      setIsLiked(likedByArray.includes(name.id));
+      setIsFollowed(post.isFollowed || false);
+    }
+  }, [name.id, post.liked_by, post.isFollowed]);
+
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   
   const handleDelete = async () => {
     try {
@@ -46,6 +61,35 @@ const Tweet = ({ post, onDelete }: TweetProps) => {
     }
   };
 
+  const handleLike = async () => {
+    try {
+      setIsLiked(!isLiked);
+      setLikesCount(isLiked ? likesCount - 1 : likesCount + 1);
+      await DataRequests.likePost(post.id, name.id, isLiked);
+    } catch (error) {
+      // En cas d'erreur, on revient à l'état précédent
+      setIsLiked(!isLiked);
+      setLikesCount(isLiked ? likesCount + 1 : likesCount - 1);
+      console.error('Erreur lors de l\'ajout de like:', error);
+    }
+  };
+
+  const handleFollow = async () => {
+    try {
+      if (!post.author?.id) {
+        console.error('ID de l\'auteur non disponible');
+        return;
+      }
+      const currentIsFollowed = isFollowed;
+      setIsFollowed(!currentIsFollowed);
+      await DataRequests.followUser(name.id, post.author.id, currentIsFollowed);
+    } catch (error) {
+      // En cas d'erreur, on revient à l'état précédent
+      setIsFollowed(!isFollowed);
+      console.error('Erreur lors du suivi:', error);
+    }
+  };
+
   // Valeurs par défaut pour les données manquantes
   const defaultAuthor = {
     name: "Utilisateur",
@@ -55,7 +99,6 @@ const Tweet = ({ post, onDelete }: TweetProps) => {
   };
 
   const author = post.author || defaultAuthor;
-  const likes = post.likes || 0;
   const reposts = post.reposts || 0;
   const replies = post.replies || 0;
 
@@ -88,13 +131,22 @@ const Tweet = ({ post, onDelete }: TweetProps) => {
                   <p className="text-gray-500"> @{author.username}</p>
                   <span className="text-gray-500">·</span>
                   <time className="text-gray-500">{new Date(post.created_at).toLocaleDateString()}</time>
-                  {name.name === author.name && (
+                  {name.name === author.name ? (
                     <Button 
                       variant="default" 
                       size="sm" 
                       onClick={() => setIsDeleteModalOpen(true)}
                     >
                       Supprimer
+                    </Button>
+                  ) : (
+                    <Button 
+                      variant={isFollowed ? "secondary" : "tertiary"} 
+                      size="sm" 
+                      rounded="full"
+                      onClick={handleFollow}
+                    >
+                      {isFollowed ? "Ne plus suivre" : "Suivre"}
                     </Button>
                   )}
                 </div>
@@ -108,22 +160,29 @@ const Tweet = ({ post, onDelete }: TweetProps) => {
                     />
                   </div>
                 )}
-                <div className="flex justify-between text-gray-500 max-w-md">
-                  <button className="flex items-center gap-2 hover:text-blue-500 transition-colors">
+                <div className=" flex justify-between text-gray-500 max-w-md">
+                  <Button className="bg-transparent flex items-center gap-2 hover:text-blue-500 transition-colors">
                     <Icon name="reply" className="w-5 h-5" />
                     <span>{replies}</span>
-                  </button>
-                  <button className="flex items-center gap-2 hover:text-green-500 transition-colors">
+                  </Button>
+                  <Button className="bg-transparent  flex items-center gap-2 hover:text-green-500 transition-colors">
                     <Icon name="repost" className="w-5 h-5" />
                     <span>{reposts}</span>
-                  </button>
-                  <button className="flex items-center gap-2 hover:text-pink-500 transition-colors">
-                    <Icon name="like" className="w-5 h-5" />
-                    <span>{likes}</span>
-                  </button>
-                  <button className="flex items-center gap-2 hover:text-blue-500 transition-colors">
+                  </Button>
+                  {isLiked ? (
+                    <Button className="bg-transparent border-none flex items-center gap-2 fill-pink-500 text-pink-500 transition-colors" onClick={() => handleLike()}>
+                      <Icon name="like" className="w-5 h-5" />
+                      <span>{likesCount}</span>
+                  </Button>
+                  ) : (
+                    <Button className="bg-transparent border-none flex items-center gap-2 hover:text-pink-400 transition-colors" onClick={() => handleLike()}>
+                      <Icon name="like" className="w-5 h-5" />
+                      <span>{likesCount}</span>
+                    </Button>
+                  )}
+                  <Button className="bg-transparent border-none flex items-center gap-2 hover:text-blue-500 transition-colors">
                     <Icon name="share" className="w-5 h-5" />
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>

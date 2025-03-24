@@ -2,16 +2,19 @@
 
 @theme {
     /* Couleurs principales */
-    --color-primary: #DB1702;
+    --color-primary: #931313;
+    --color-red: #FF0000;
+    --color-dark-red: #7A0C0C;
+    --color-orange: #C17817;
     --color-secondary: #6c757d;
     
     /* Couleurs de base */
     --color-white: #ffffff;
-    --color-black: #000000;
+    --color-black: #010C14;
     
     
     /* Couleurs d'interface */
-    --color-fg: var(--color-primary);
+    --color-fg: var(--color-dark-red);
     --color-bg: var(--color-secondary);
 }
 

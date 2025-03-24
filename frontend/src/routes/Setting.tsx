@@ -17,12 +17,15 @@ const Setting = () => {
 
   const handleSubmit = async () => {
     try {
-      await DataRequests.updateSetting(userJson.id, sliderValue);
+      await DataRequests.updateSetting(userJson.id, sliderValue.toString());
       let user = localStorage.getItem("user");
       let datauser = JSON.parse(user!);
       datauser.reloading = sliderValue;
       localStorage.setItem("user", JSON.stringify(datauser));
-      setSliderValue(sliderValue);
+      
+      // Déclencher l'événement de mise à jour du reloading
+      const event = new CustomEvent('reloadingUpdated', { detail: sliderValue });
+      window.dispatchEvent(event);
 
     } catch (error) {
       console.error("Erreur lors de la mise à jour des paramètres:", error);

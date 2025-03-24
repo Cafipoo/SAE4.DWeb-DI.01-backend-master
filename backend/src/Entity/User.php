@@ -28,11 +28,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]
     private ?\DateTimeInterface $joinedDate = null;
 
-    #[ORM\Column(type: Types::BLOB, nullable: true)]
-    private $avatar = null;
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $avatar = null;
 
-    #[ORM\Column(type: Types::BLOB, nullable: true)]
-    private $cover = null;
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $cover = null;
 
     #[ORM\Column(length: 255, unique: true)]
     private ?string $email = null;

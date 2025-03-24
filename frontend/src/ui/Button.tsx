@@ -6,7 +6,7 @@ const buttonVariants = cva("font-medium focus:outline-none transition-colors", {
     variant: {
       default: "bg-primary text-[var(--color-white)] shadow-lg hover:opacity-90 focus:ring-[var(--color-primary)] cursor-pointer",
       secondary: "bg-[var(--color-secondary)] text-[var(--color-white)] shadow-lg hover:opacity-90 focus:ring-[var(--color-secondary)] cursor-pointer",
-      tertiary: "bg-blue-500 text-[var(--color-white)] shadow-lg hover:opacity-90 focus:ring-[var(--color-secondary)] cursor-pointer",
+      tertiary: "bg-orange text-[var(--color-white)] shadow-lg hover:opacity-90 focus:ring-[var(--color-secondary)] cursor-pointer",
       destructive: "bg-[var(--color-danger)] text-[var(--color-white)] shadow-lg hover:opacity-90 focus:ring-[var(--color-danger)]",
     },
     size: {

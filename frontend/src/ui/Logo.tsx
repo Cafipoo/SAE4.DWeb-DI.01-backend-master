@@ -1,6 +1,6 @@
 const Logo = () => (
-  <div className="flex justify-center">
-    <img src="src/assets/logo.png" alt="logo" className="w-20 h-14" />
+  <div className="flex justify-center mb-0">
+    <img src="src/assets/logo.webp" alt="logo" className="w-22 h-16" />
   </div>
 );
 
