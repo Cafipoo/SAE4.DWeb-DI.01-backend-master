@@ -13,75 +13,6 @@ use Doctrine\ORM\EntityManagerInterface;
 
 class SecurityController extends AbstractController
 {
-    #[Route('/register', name: 'register', methods: ['POST'])]
-    public function register(
-        Request $request, 
-        UserPasswordHasherInterface $passwordHasher,
-        EntityManagerInterface $entityManager,
-        UserRepository $userRepository
-    ): JsonResponse {
-        try {
-            $data = json_decode($request->getContent(), true);
-
-            // Vérification des données requises
-            if (!isset($data['email'], $data['password'], $data['username'], $data['name'])) {
-                return $this->json([
-                    'error' => 'Données manquantes'
-                ], 400);
-            }
-
-            // Vérification si l'email existe déjà
-            if ($userRepository->findOneBy(['email' => $data['email']])) {
-                return $this->json([
-                    'error' => 'Cet email est déjà utilisé'
-                ], 400);
-            }
-
-            // Vérification si le username existe déjà
-            if ($userRepository->findOneBy(['username' => $data['username']])) {
-                return $this->json([
-                    'error' => 'Ce nom d\'utilisateur est déjà utilisé'
-                ], 400);
-            }
-
-            // Création du nouvel utilisateur
-            $user = new User();
-            $user->setEmail($data['email']);
-            $user->setUsername($data['username']);
-            $user->setName($data['name']);
-            $user->setJoinedDate(new \DateTime());
-            
-            if (isset($data['birthDate'])) {
-                $user->setBirthdate(new \DateTime($data['birthDate']));
-            }
-
-            // Hashage du mot de passe
-            $hashedPassword = $passwordHasher->hashPassword($user, $data['password']);
-            $user->setPassword($hashedPassword);
-
-            // Génération du token d'API
-            $user->setApiToken(bin2hex(random_bytes(32)));
-
-            // Sauvegarde en base de données
-            $entityManager->persist($user);
-            $entityManager->flush();
-
-            return $this->json([
-                'token' => $user->getApiToken(),
-                'user' => [
-                    'id' => $user->getId(),
-                    'email' => $user->getEmail(),
-                    'username' => $user->getUsername(),
-                    'name' => $user->getName()
-                ]
-            ], 201);
-
-        } catch (\Exception $e) {
-            return $this->json([
-                'error' => 'Une erreur est survenue lors de l\'inscription'
-            ], 500);
-        }
-    }
 
     #[Route('/login', name: 'login', methods: ['POST'])]
     public function login(
@@ -113,6 +44,14 @@ class SecurityController extends AbstractController
                     'error' => 'Votre compte a été banni'
                 ], 403);
             }
+            
+            // NOTE: Currently not checking for email verification
+            // If you want to enable this check, uncomment the following code
+            // if (!$user->isVerified()) {
+            //     return $this->json([
+            //         'error' => 'Veuillez vérifier votre email avant de vous connecter'
+            //     ], 401);
+            // }
 
             // Génération d'un nouveau token API
             $user->setApiToken(bin2hex(random_bytes(32)));

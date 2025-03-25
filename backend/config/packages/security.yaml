@@ -20,6 +20,11 @@ security:
         dev:
             pattern: ^/(_(profiler|wdt)|css|images|js)/
             security: false
+            
+        verify_email:
+            pattern: ^/verify/email
+            stateless: true
+            security: false
 
         api:
             pattern: ^/
@@ -49,6 +54,7 @@ security:
     access_control:
         - { path: ^/login, roles: PUBLIC_ACCESS }
         - { path: ^/register, roles: PUBLIC_ACCESS }
+        - { path: ^/verify/email, roles: PUBLIC_ACCESS }
         - { path: ^/admin, roles: PUBLIC_ACCESS }
         - { path: ^/, roles: ROLE_USER }
 when@test:

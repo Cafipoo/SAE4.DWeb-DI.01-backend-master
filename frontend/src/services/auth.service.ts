@@ -40,7 +40,9 @@ class AuthService {
 
         return fetch(`${API_URL}${endpoint}`, {
             ...options,
-            headers
+            headers,
+            credentials: 'include',
+            mode: 'cors',
         });
     }
 
@@ -101,19 +103,27 @@ class AuthService {
     }): Promise<AuthResponse> {
         this.clearAuthData();
 
-        const response = await this.authenticatedFetch('/register', {
-            method: 'POST',
-            body: JSON.stringify(userData),
-        });
+        try {
+            const response = await this.authenticatedFetch('/register', {
+                method: 'POST',
+                body: JSON.stringify(userData),
+            });
 
-        if (!response.ok) {
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ error: 'Erreur lors de l\'inscription' }));
+                throw new Error(errorData.error || 'Erreur lors de l\'inscription');
+            }
+
             const data = await response.json();
-            throw new Error(data.error || 'Erreur lors de l\'inscription');
+            this.setAuthData(data.token, data.user.id);
+            localStorage.setItem('user', JSON.stringify(data.user));
+            return data;
+        } catch (error) {
+            if (error instanceof Error) {
+                throw error;
+            }
+            throw new Error('Une erreur est survenue lors de l\'inscription');
         }
-
-        const data = await response.json();
-        this.setAuthData(data.token, data.user.id);
-        return data;
     }
 
     static async verifyToken(): Promise<User | null> {

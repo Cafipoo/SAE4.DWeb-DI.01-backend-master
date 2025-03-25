@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import Logo from '../ui/Logo';
 import Input from '../ui/Input';
 import Button from '../ui/Button';
@@ -8,16 +8,32 @@ import AuthService from '../services/auth.service';
 
 const Login = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
 
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+
+  useEffect(() => {
+    // Check for verification status in URL
+    const params = new URLSearchParams(location.search);
+    const verified = params.get('verified');
+    const verificationError = params.get('error');
+    
+    if (verified === 'true') {
+      setSuccessMessage('Votre email a été vérifié avec succès. Vous pouvez maintenant vous connecter.');
+    } else if (verified === 'false' && verificationError) {
+      setError('Erreur de vérification: ' + decodeURIComponent(verificationError));
+    }
+  }, [location]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccessMessage('');
 
     try {
       let response = await AuthService.login(formData.email, formData.password);
@@ -44,6 +60,12 @@ const Login = () => {
       <h2 className="text-2xl font-bold text-center text-white">Connectez-vous</h2>
       
       <form onSubmit={handleSubmit} className="mt-8 space-y-6">
+        {successMessage && (
+          <div className="bg-green-500/10 border border-green-500 text-green-500 rounded-lg p-3 text-sm">
+            {successMessage}
+          </div>
+        )}
+        
         {error && (
           <div className="bg-red-500/10 border border-red-500 text-red-500 rounded-lg p-3 text-sm">
             {error}

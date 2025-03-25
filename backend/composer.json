@@ -18,9 +18,11 @@
         "symfony/framework-bundle": "7.2.*",
         "symfony/runtime": "7.2.*",
         "symfony/security-bundle": "7.2.*",
-        "symfony/yaml": "7.2.*"
+        "symfony/yaml": "7.2.*",
+        "symfonycasts/verify-email-bundle": "^1.17"
     },
     "require-dev": {
+        "symfony/mailer": "7.2.*",
         "symfony/maker-bundle": "^1.62",
         "symfony/stopwatch": "7.2.*",
         "symfony/web-profiler-bundle": "7.2.*"
