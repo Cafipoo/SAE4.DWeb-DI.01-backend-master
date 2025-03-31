@@ -9,6 +9,8 @@ export interface User {
     avatar: string | null;
     cover: string | null;
     bio: string | null;
+    location: string | null;
+    siteWeb: string | null;
     banned: boolean;
 }
 
@@ -190,6 +192,41 @@ export const DataRequests = {
             throw new Error(errorData.error || 'Erreur lors du suivi');
         }
     },
+
+    /**
+     * Upload d'une image de couverture pour un profil
+     * @param username Nom d'utilisateur du profil à modifier
+     * @param imageFile Fichier image à uploader
+     * @returns Les données de réponse qui contiennent soit l'image en base64 avec son type MIME, soit le chemin de l'image
+     */
+    // async uploadCover(username: string, imageFile: File): Promise<any> {
+    //     const formData = new FormData();
+    //     formData.append('cover', imageFile);
+        
+    //     // Utiliser fetch directement au lieu de authenticatedFetch pour ne pas forcer le Content-Type à application/json
+    //     const token = AuthService.getToken();
+    //     const headers = new Headers();
+    //     if (token) {
+    //         headers.set('Authorization', `Bearer ${token}`);
+    //     }
+    //     // Ne pas définir de Content-Type pour laisser le navigateur gérer le boundary avec FormData
+        
+    //     const response = await fetch(`http://localhost:8080/profile/${username}/cover`, {
+    //         method: 'POST',
+    //         headers,
+    //         body: formData,
+    //         credentials: 'include',
+    //         mode: 'cors',
+    //     });
+        
+    //     const data = await response.json();
+        
+    //     if (!response.ok) {
+    //         throw new Error(data.error || 'Erreur lors de l\'upload de l\'image de couverture');
+    //     }
+        
+    //     return data;
+    // },
 
     async createPost(content: string): Promise<Post> {
         const userId = AuthService.getUserId();
@@ -388,6 +425,74 @@ export const DataRequests = {
                     }
                 }
                 throw new Error('Erreur lors de la suppression du post');
+            }
+        } catch (error) {
+            throw error;
+        }
+    },
+
+    async updateUserProfile(username: string, formData: FormData): Promise<User> {
+
+        const response = await AuthService.authenticatedFetch(`/profile/${username}/update`, {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || 'Erreur lors de la mise à jour du profil');
+            
+        }
+
+        const data = await response.json();
+        // Mettre à jour les données de l'utilisateur dans le localStorage
+        const currentUser = localStorage.getItem('user');
+        if (currentUser) {
+            const parsedUser = JSON.parse(currentUser);
+            const updatedUser = {
+                ...parsedUser,
+                ...data.user
+            };
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+            
+            if (data.user.username !== username) {
+                localStorage.setItem('username', data.user.username);
+            }
+        }
+
+        return data.user;
+    },
+
+    async getSubscribedPosts(userId: number, page: number): Promise<PostsResponse> {
+        try {
+            const response = await AuthService.authenticatedFetch(`/posts/subscribed/${userId}?page=${page}`);
+            const responseText = await response.text();
+
+            // Extraire la partie JSON valide
+            const jsonMatch = responseText.match(/^\{.*\}/);
+            if (!jsonMatch) {
+                throw new Error('Aucun JSON valide trouvé dans la réponse');
+            }
+            const jsonText = jsonMatch[0];
+
+            if (!response.ok) {
+                let errorData;
+                try {
+                    errorData = JSON.parse(jsonText);
+                    throw new Error(errorData.error || 'Erreur lors de la récupération des posts');
+                } catch (e) {
+                    throw new Error('Réponse invalide du serveur: ' + jsonText);
+                }
+            }
+
+            try {
+                const data = JSON.parse(jsonText);
+                return {
+                    posts: data.posts,
+                    hasMore: data.posts.length > 0 && data.next_page !== null
+                };
+            } catch (e) {
+                throw new Error('Réponse invalide du serveur: ' + jsonText);
             }
         } catch (error) {
             throw error;

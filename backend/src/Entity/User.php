@@ -58,6 +58,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(nullable: true)]
     private ?bool $isVerified = null;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $location = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $siteWeb = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -246,6 +252,30 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setIsVerified(?bool $isVerified): static
     {
         $this->isVerified = $isVerified;
+
+        return $this;
+    }
+
+    public function getLocation(): ?string
+    {
+        return $this->location;
+    }
+
+    public function setLocation(?string $location): static
+    {
+        $this->location = $location;
+
+        return $this;
+    }
+
+    public function getSiteWeb(): ?string
+    {
+        return $this->siteWeb;
+    }
+
+    public function setSiteWeb(?string $siteWeb): static
+    {
+        $this->siteWeb = $siteWeb;
 
         return $this;
     }

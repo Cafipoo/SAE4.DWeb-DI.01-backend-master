@@ -48,7 +48,7 @@ const Sidebar = () => {
   return (
     <>
       {/* Mobile Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 border-t border-gray-800 md:hidden z-50">
+      <nav className="fixed bottom-0 left-0 right-0 border-t bg-black border-gray-800 md:hidden z-50">
         <div className="flex justify-around items-center h-16">
           {navItems.slice(0, 4).map((item) => (
             <Link

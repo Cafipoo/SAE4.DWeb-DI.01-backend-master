@@ -65,7 +65,12 @@ class SecurityController extends AbstractController
                     'username' => $user->getUsername(),
                     'name' => $user->getName(),
                     'avatar' => $user->getAvatar(),
-                    'reloading' => $user->getReloading()
+                    'cover' => $user->getCover(),
+                    'reloading' => $user->getReloading(),
+                    'location' => $user->getLocation(),
+                    'siteWeb' => $user->getSiteWeb(),
+                    'bio' => $user->getBio(),
+                    
                 ]
             ]);
 

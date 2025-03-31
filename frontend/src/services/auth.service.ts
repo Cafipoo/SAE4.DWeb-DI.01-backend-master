@@ -8,8 +8,10 @@ export interface User {
     name: string;
     avatar?: string;
     joinedDate: string;
-    birthdate: string | null;
-    bio: string | null;
+    birthdate?: string;
+    bio?: string;
+    location?: string;
+    siteWeb?: string;
     banned: boolean;
 }
 
@@ -160,6 +162,7 @@ class AuthService {
                 localStorage.removeItem(this.TOKEN_KEY);
                 localStorage.removeItem(this.USER_ID_KEY);
                 localStorage.removeItem('user');
+                localStorage.removeItem('username');
                 window.location.href = 'http://localhost:8090/login';
                 alert('Vous êtes déconnecté');
             } catch (error) {

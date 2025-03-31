@@ -16,6 +16,7 @@ const Profile = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [followedUsers, setFollowedUsers] = useState<number[]>([]);
 
   // Fonction pour ajouter un nouveau tweet
   const addNewTweet = useCallback((newTweet: Post) => {
@@ -29,6 +30,28 @@ const Profile = () => {
   // Fonction pour supprimer un tweet
   const handleDeleteTweet = useCallback((postId: number) => {
     setPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
+  }, []);
+
+  const handleFollowUpdate = useCallback((userId: number, isFollowed: boolean) => {
+    setFollowedUsers(prev => {
+      if (isFollowed) {
+        return prev.filter(id => id !== userId);
+      } else {
+        return [...prev, userId];
+      }
+    });
+
+    setPosts(prevPosts => 
+      prevPosts.map(post => {
+        if (post.author?.id === userId) {
+          return {
+            ...post,
+            isFollowed: !isFollowed
+          };
+        }
+        return post;
+      })
+    );
   }, []);
 
   // Écouter l'événement de nouveau tweet
@@ -144,10 +167,13 @@ const Profile = () => {
           avatar={user.avatar || ''}
           displayName={user.name}
           username={user.username}
+
         />
         
         <ProfileInfo
           bio={user.bio || 'Aucune bio'}
+          location={user.location || ''}
+          website={user.siteWeb || ''}
           joinedDate={user.joined_date}
           stats={{
             following: 0,
@@ -177,16 +203,18 @@ const Profile = () => {
                       content: post.content,
                       created_at: post.created_at,
                       author: {
+                        id: user.id,
                         name: user.name,
                         username: user.username,
                         avatar: user.avatar || '',
                         banned: user.banned
                       },
-                      likes: 0,
+                      likes_count: post.likes_count,
                       reposts: 0,
                       replies: 0
                     }}
                     onDelete={handleDeleteTweet}
+                    onFollowUpdate={handleFollowUpdate}
                   />
                 </div>
               ))

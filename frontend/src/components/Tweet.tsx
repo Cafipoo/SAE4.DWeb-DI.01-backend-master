@@ -29,9 +29,10 @@ interface TweetProps {
     isFollowed?: boolean;
   };
   onDelete?: (postId: number) => void;
+  onFollowUpdate?: (userId: number, isFollowed: boolean) => void;
 }
 
-const Tweet = ({ post, onDelete }: TweetProps) => {
+const Tweet = ({ post, onDelete, onFollowUpdate }: TweetProps) => {
   let name = localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")!) : null;
   const [isLiked, setIsLiked] = useState(false);
   const [isFollowed, setIsFollowed] = useState(post.isFollowed || false);
@@ -83,6 +84,11 @@ const Tweet = ({ post, onDelete }: TweetProps) => {
       const currentIsFollowed = isFollowed;
       setIsFollowed(!currentIsFollowed);
       await DataRequests.followUser(name.id, post.author.id, currentIsFollowed);
+      
+      // Appeler la fonction de mise à jour du parent
+      if (onFollowUpdate) {
+        onFollowUpdate(post.author.id, currentIsFollowed);
+      }
     } catch (error) {
       // En cas d'erreur, on revient à l'état précédent
       setIsFollowed(!isFollowed);

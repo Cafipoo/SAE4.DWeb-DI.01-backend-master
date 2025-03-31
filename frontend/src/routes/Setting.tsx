@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import Button from '../ui/Button';
 import { DataRequests } from '../data/data-requests';
+import ProfileUpdate from '../components/ProfileUpdate';
 const Setting = () => {
     let user = localStorage.getItem("user");
     let userJson = JSON.parse(user!);
@@ -62,6 +63,7 @@ const Setting = () => {
             <p className="text-gray-400 text-sm">Laisser la valeur à 0 désactive le rafraîchissement automatique</p>
             <Button variant="tertiary" className="mt-4" onClick={handleSubmit}>Modifier</Button>
           </div>
+          <ProfileUpdate username={userJson.username} initialData={userJson} onUpdate={() => {}} />
         </div>
       </main>
     </div>

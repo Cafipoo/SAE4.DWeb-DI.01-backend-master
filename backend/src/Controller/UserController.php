@@ -11,6 +11,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Doctrine\ORM\Tools\Pagination\Paginator;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 class UserController extends AbstractController
 {
@@ -113,6 +114,8 @@ class UserController extends AbstractController
             'avatar' => $user->getAvatar(),
             'cover' => $user->getCover(),
             'bio' => $user->getBio(),
+            'location' => $user->getLocation(),
+            'siteWeb' => $user->getSiteWeb(),
             'posts' => array_map(function($post) {
                 $postAvatar = $post->getUser()->getAvatar();
                 return [
@@ -174,7 +177,7 @@ class UserController extends AbstractController
             }
 
             // Vérification de la présence des champs requis
-            if (!isset($data['username']) || !isset($data['name']) || !isset($data['bio']) || !isset($data['banned'])) {
+            if (!isset($data['username']) || !isset($data['name']) || !isset($data['banned'])) {
                 return $this->json(['error' => 'Champs requis manquants'], Response::HTTP_BAD_REQUEST);
             }
 
@@ -296,6 +299,198 @@ class UserController extends AbstractController
         return $this->json([
             'posts' => $postsData
         ]);
+    }
+
+    // #[Route('/profile/{username}/cover', name: 'user.cover.upload', methods: ['POST'])]
+    // public function uploadCover(
+    //     Request $request,
+    //     UserRepository $userRepository,
+    //     EntityManagerInterface $entityManager,
+    //     string $username
+    // ): JsonResponse {
+    //     try {
+    //         // Trouver l'utilisateur dont on veut modifier la couverture
+    //         $user = $userRepository->findOneBy(['username' => $username]);
+    //         if (!$user) {
+    //             return new JsonResponse(['error' => 'Utilisateur non trouvé'], Response::HTTP_NOT_FOUND);
+    //         }
+
+    //         // Vérifier si l'utilisateur authentifié est admin ou le même que celui qu'il veut modifier
+    //         if ($authenticatedUser->getId() !== $user->getId() && !in_array('ROLE_ADMIN', $authenticatedUser->getRoles())) {
+    //             return new JsonResponse(['error' => 'Vous n\'avez pas les droits pour modifier cet utilisateur'], Response::HTTP_FORBIDDEN);
+    //         }
+
+    //         // Vérifier si une image a été envoyée
+    //         if (!$request->files->has('cover')) {
+    //             // Débogage des fichiers reçus
+    //             $filesInfo = [];
+    //             foreach ($request->files as $key => $file) {
+    //                 $filesInfo[$key] = 'File present';
+    //             }
+                
+    //             // Débogage des données de la requête
+    //             $requestData = [
+    //                 'files' => $filesInfo,
+    //                 'content_type' => $request->headers->get('Content-Type'),
+    //                 'method' => $request->getMethod(),
+    //                 'request_format' => $request->getRequestFormat(),
+    //             ];
+                
+    //             return new JsonResponse([
+    //                 'error' => 'Aucune image n\'a été envoyée',
+    //                 'debug' => $requestData
+    //             ], Response::HTTP_BAD_REQUEST);
+    //         }
+
+    //         $coverFile = $request->files->get('cover');
+
+    //         // Vérifier le type MIME
+    //         $mimeType = $coverFile->getMimeType();
+    //         if (!in_array($mimeType, ['image/jpeg', 'image/png'])) {
+    //             return new JsonResponse(['error' => 'Format d\'image non supporté. Utilisez JPEG ou PNG'], Response::HTTP_BAD_REQUEST);
+    //         }
+
+    //         // Vérifier la taille de l'image
+    //         if ($coverFile->getSize() > 5 * 1024 * 1024) { // 5MB max
+    //             return new JsonResponse(['error' => 'L\'image est trop grande. Taille maximum: 5MB'], Response::HTTP_BAD_REQUEST);
+    //         }
+
+    //         // Générer un nom de fichier unique
+    //         $fileName = $username . '_cover_' . uniqid() . '.' . $coverFile->guessExtension();
+            
+    //         // Définir le répertoire de destination
+    //         $uploadsDir = $this->getParameter('kernel.project_dir') . '/public/uploads/covers';
+            
+    //         try {
+    //             $coverFile->move($uploadsDir, $fileName);
+    //         } catch (\Exception $e) {
+    //             // En cas d'échec, essayons d'obtenir plus d'informations
+    //             throw new \Exception('Erreur lors du déplacement du fichier: ' . $e->getMessage() . 
+    //                 ', Répertoire: ' . $uploadsDir . 
+    //                 ', Permissions: ' . substr(sprintf('%o', fileperms($uploadsDir)), -4));
+    //         }
+            
+    //         $publicPath = '/uploads/covers/' . $fileName;
+
+    //         $user->setCover($publicPath);
+
+    //         $entityManager->persist($user);
+    //         $entityManager->flush();
+            
+    //         $fileContent = file_get_contents($uploadsDir . '/' . $fileName);
+    //         $base64Content = base64_encode($fileContent);
+
+    //         return new JsonResponse([
+    //             'message' => 'Image de couverture mise à jour avec succès',
+    //             'cover' => $base64Content,
+    //             'mimeType' => $mimeType,
+    //             'coverUrl' => $publicPath
+    //         ]);
+
+    //     } catch (\Exception $e) {
+    //         return new JsonResponse([
+    //             'error' => 'Une erreur est survenue lors du téléchargement de l\'image: ' . $e->getMessage(),
+    //             'trace' => $e->getTraceAsString()
+    //         ], Response::HTTP_INTERNAL_SERVER_ERROR);
+    //     }
+    // }
+
+    #[Route('/profile/{username}/update', name: 'user.profile.update', methods: ['POST'])]
+    public function updateProfile(Request $request, UserRepository $userRepository, EntityManagerInterface $entityManager, string $username): JsonResponse {
+        try {
+            // // Trouver l'utilisateur à modifier
+            $user = $userRepository->findOneBy(['username' => $username]);
+            if (!$user) {
+                return new JsonResponse(['error' => 'Utilisateur non trouvé'], Response::HTTP_NOT_FOUND);
+            }
+
+            $uploadDir = $this->getParameter('uploads_directory');
+            $avatarRepo = $uploadDir . '/avatar';
+            $coverRepo = $uploadDir . '/covers';
+
+            // Récupérer les données depuis form-data
+            $username = $request->request->get('username', $user->getUsername());
+            $name = $request->request->get('name', $user->getName());
+            $bio = $request->request->get('bio', $user->getBio());
+            $location = $request->request->get('location', $user->getLocation());
+            $siteWeb = $request->request->get('siteWeb', $user->getSiteWeb());
+
+            $user->setUsername($username);
+            $user->setName($name);
+            $user->setBio($bio);
+            $user->setLocation($location);
+            $user->setSiteWeb($siteWeb);
+
+
+            // Handle avatar upload
+            $avatar = $request->files->get('avatar');
+            if ($avatar && $avatar instanceof UploadedFile) {
+                if (!is_dir($avatarRepo)) {
+                    return new JsonResponse(['message' => 'Upload directory does not exist'], JsonResponse::HTTP_INTERNAL_SERVER_ERROR);
+                }
+
+                // Supprimer l'ancien avatar s'il existe
+                if ($user->getAvatar()) {
+                    $oldAvatarPath = $avatarRepo . '/' . $user->getAvatar();
+                    if (file_exists($oldAvatarPath)) {
+                        unlink($oldAvatarPath);
+                    }
+                }
+
+                $avatarFileName = uniqid() . '.' . $avatar->guessExtension();
+                try {
+                    $avatar->move($avatarRepo, $avatarFileName);
+                    $user->setAvatar($avatarFileName);
+                } catch (\Exception $e) {
+                    return new JsonResponse(['message' => 'Failed to upload avatar: ' . $e->getMessage()], JsonResponse::HTTP_INTERNAL_SERVER_ERROR);
+                }
+            }
+
+            $cover = $request->files->get('cover');
+            if ($cover && $cover instanceof UploadedFile) {
+                if (!is_dir($coverRepo)) {
+                    return new JsonResponse(['message' => 'Upload directory does not exist'], JsonResponse::HTTP_INTERNAL_SERVER_ERROR);
+                }
+
+                // Supprimer l'ancienne bannière si elle existe
+                if ($user->getCover()) {
+                    $oldcoverPath = $coverRepo . '/' . $user->getCover();
+                    if (file_exists($oldcoverPath)) {
+                        unlink($oldcoverPath);
+                    }
+                }
+
+                $coverFileName = uniqid() . '.' . $cover->guessExtension();
+                try {
+                    $cover->move($coverRepo, $coverFileName);
+                    $user->setCover($coverFileName);
+                } catch (\Exception $e) {
+                    return new JsonResponse(['message' => 'Failed to upload cover: ' . $e->getMessage()], JsonResponse::HTTP_INTERNAL_SERVER_ERROR);
+                }
+            }
+
+            $entityManager->persist($user);
+            $entityManager->flush();
+
+            return new JsonResponse([
+                'message' => 'Profil mis à jour avec succès',
+                'user' => [
+                    'id' => $user->getId(),
+                    'username' => $user->getUsername(),
+                    'name' => $user->getName(),
+                    'bio' => $user->getBio(),
+                    'location' => $user->getLocation(),
+                    'siteWeb' => $user->getSiteWeb(),
+                    'avatar' => $user->getAvatar(),
+                    'cover' => $user->getCover()
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return new JsonResponse([
+                'error' => 'Une erreur est survenue lors de la mise à jour du profil: ' . $e->getMessage()
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
 }

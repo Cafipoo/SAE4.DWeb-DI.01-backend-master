@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Tweet from '../components/Tweet';
 import Sidebar from '../components/Sidebar';
+import HomeTab from '../components/HomeTab';
 import { DataRequests, Post } from '../data/data-requests';
 import Icon from '../ui/Icon';
 
@@ -10,7 +11,9 @@ const Home = () => {
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [currentTab, setCurrentTab] = useState<'all' | 'following'>('all');
   const observer = useRef<IntersectionObserver | null>(null);
+  const [followedUsers, setFollowedUsers] = useState<number[]>([]);
 
   // Fonction pour ajouter un nouveau tweet
   const addNewTweet = useCallback((newTweet: Post) => {
@@ -26,7 +29,16 @@ const Home = () => {
   const fetchPosts = useCallback(async (page: number = 1) => {
     try {
       setLoading(true);
-      const response = await DataRequests.getAllPosts(page);
+      const user = localStorage.getItem('user');
+      const userId = user ? JSON.parse(user).id : null;
+
+      if (!userId) {
+        throw new Error('Utilisateur non connecté');
+      }
+
+      const response = currentTab === 'all' 
+        ? await DataRequests.getAllPosts(page)
+        : await DataRequests.getSubscribedPosts(userId, page);
       
       setPosts(prevPosts => {
         if (page === 1) return response.posts;
@@ -42,7 +54,7 @@ const Home = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentTab]);
 
   // Fonction pour rafraîchir les posts
   const handleRefresh = async () => {
@@ -57,6 +69,14 @@ const Home = () => {
     } finally {
       setIsRefreshing(false);
     }
+  };
+
+  // Gérer le changement d'onglet
+  const handleTabChange = (tab: 'all' | 'following') => {
+    setCurrentTab(tab);
+    setCurrentPage(1);
+    setPosts([]);
+    setHasMore(true);
   };
 
   useEffect(() => {
@@ -127,14 +147,53 @@ const Home = () => {
     fetchPosts(currentPage);
   }, [currentPage, fetchPosts]);
 
+  // Ajouter cette fonction pour gérer le follow/unfollow
+  const handleFollowUpdate = useCallback((userId: number, isFollowed: boolean) => {
+    setFollowedUsers(prev => {
+      if (isFollowed) {
+        return prev.filter(id => id !== userId);
+      } else {
+        return [...prev, userId];
+      }
+    });
+
+    // Si nous sommes dans l'onglet "following" et que l'utilisateur unfollow
+    if (currentTab === 'following' && isFollowed) {
+      // Supprimer tous les tweets de l'utilisateur unfollowed
+      setPosts(prevPosts => 
+        prevPosts.filter(post => post.author?.id !== userId)
+      );
+    } else {
+      // Sinon, mettre à jour uniquement le statut isFollowed
+      setPosts(prevPosts => 
+        prevPosts.map(post => {
+          if (post.author?.id === userId) {
+            return {
+              ...post,
+              isFollowed: !isFollowed
+            };
+          }
+          return post;
+        })
+      );
+    }
+  }, [currentTab]);
+
   return (
     <div className="flex justify-center md:gap-4 min-h-screen bg-black">
       <div className="flex">
         <Sidebar />
       </div>
-        <main className="flex-1 border-l border-r md:border-gray-700 md:ml-72 md:max-w-[600px]">
-        <header className="sticky top-0 z-10 border-b border-gray-700 backdrop-blur flex justify-between items-center px-4">
+      <main className="flex-1 border-l border-r md:border-gray-700 md:ml-72 md:max-w-[600px]">
+        <header className="sticky top-0 z-10 border-b border-gray-700 backdrop-blur">
           <h1 className="text-xl font-bold text-white p-4">Accueil</h1>
+          <HomeTab 
+            currentTab={currentTab}
+            onTabChange={handleTabChange}
+          />
+        </header>
+
+        <div className="flex justify-end px-4 py-2">
           <div 
             className="flex items-center gap-2 cursor-pointer hover:bg-gray-800 p-2 rounded-full transition-colors"
             onClick={handleRefresh}
@@ -145,7 +204,7 @@ const Home = () => {
             />
             <p className="text-white">Actualiser</p>
           </div>
-        </header>
+        </div>
 
         <div className="divide-y divide-gray-700">
           {posts.map((post, index) => (
@@ -156,6 +215,7 @@ const Home = () => {
               <Tweet 
                 post={post} 
                 onDelete={handleDeleteTweet}
+                onFollowUpdate={handleFollowUpdate}
               />
             </div>
           ))}
@@ -171,6 +231,12 @@ const Home = () => {
         {!hasMore && posts.length > 0 && (
           <div className="p-4 text-center text-gray-500">
             Vous avez vu tous les tweets disponibles
+          </div>
+        )}
+
+        {!loading && posts.length === 0 && currentTab === 'following' && (
+          <div className="p-4 text-center text-gray-500">
+            Aucun tweet des personnes que vous suivez
           </div>
         )}
       </main>

@@ -6,6 +6,7 @@ use App\Entity\Post;
 use App\Repository\PostRepository;
 use App\Repository\UserRepository;
 use App\Repository\PostInteractionRepository;
+use App\Repository\UserInteractionRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -71,6 +72,104 @@ class PostController extends AbstractController
             'posts_per_page' => $postsPerPage
         ]);
     }
+
+    #[Route('/posts/subscribed/{id}', name: 'posts.subscribed', methods: ['GET'])]
+    public function subscribed(
+        Request $request, 
+        PostRepository $postRepository, 
+        UserRepository $userRepository,
+        UserInteractionRepository $userInteractionRepository,
+        int $id
+    ): JsonResponse {
+        // Récupérer les IDs des utilisateurs suivis
+        $followedUsers = $userInteractionRepository->findBy([
+            'user' => $id,
+            'followed' => true
+        ]);
+        
+        $followedUserIds = array_map(function($interaction) {
+            return $interaction->getSecondUser()->getId();
+        }, $followedUsers);
+
+        // Si aucun utilisateur suivi, retourner un tableau vide
+        if (empty($followedUserIds)) {
+            return $this->json([
+                'posts' => [],
+                'previous_page' => null,
+                'next_page' => null,
+                'total_posts' => 0,
+                'current_page' => 1,
+                'max_pages' => 0,
+                'posts_per_page' => 5
+            ]);
+        }
+
+        // Pagination
+        $postsPerPage = 5;
+        $page = max(1, $request->query->getInt('page', 1));
+        $offset = ($page - 1) * $postsPerPage;
+
+        // Récupérer les posts des utilisateurs suivis
+        $qb = $postRepository->createQueryBuilder('p')
+            ->where('p.user IN (:userIds)')
+            ->setParameter('userIds', $followedUserIds)
+            ->orderBy('p.created_at', 'DESC')
+            ->setFirstResult($offset)
+            ->setMaxResults($postsPerPage);
+
+        $paginator = new Paginator($qb);
+        $totalPosts = count($paginator);
+        $maxPages = ceil($totalPosts / $postsPerPage);
+
+        $posts = [];
+        foreach ($paginator as $post) {
+            $user = $post->getUser();
+            
+            // Récupérer les likes pour ce post
+            $likes = $post->getPostInteractions()->filter(function($interaction) {
+                return $interaction->isLikes() === true;
+            });
+            
+            $likedByIds = $likes->map(function($interaction) {
+                return $interaction->getIdUser()->getId();
+            })->toArray();
+
+            // Vérifier si l'utilisateur suit l'auteur du post
+            $isFollowed = $userInteractionRepository->findOneBy([
+                'user' => $id,
+                'secondUser' => $user,
+                'followed' => true
+            ]) !== null;
+            
+            $posts[] = [
+                'id' => $post->getId(),
+                'content' => $post->getContent(),
+                'created_at' => $post->getCreatedAt()->format('Y-m-d H:i:s'),
+                'author' => [
+                    'id' => $user->getId(),
+                    'name' => $user->getName(),
+                    'username' => $user->getUsername(),
+                    'avatar' => $user->getAvatar(),
+                    'email' => $user->getEmail(),
+                    'banned' => $user->isBanned()
+                ],
+                'likes_count' => count($likes),
+                'liked_by' => $likedByIds,
+                'isFollowed' => $isFollowed
+            ];
+        }
+
+        return $this->json([
+            'posts' => $posts,
+            'previous_page' => ($page > 1) ? $page - 1 : null,
+            'next_page' => ($page < $maxPages) ? $page + 1 : null,
+            'total_posts' => $totalPosts,
+            'current_page' => $page,
+            'max_pages' => $maxPages,
+            'posts_per_page' => $postsPerPage
+        ]);
+    }
+
 
     #[Route('/posts/{id}', name: 'posts.create', methods: ['POST'])]
     public function create(int $id, Request $request, PostRepository $postRepository, UserRepository $userRepository): JsonResponse
