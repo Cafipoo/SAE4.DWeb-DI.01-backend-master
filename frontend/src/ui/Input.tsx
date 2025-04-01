@@ -59,7 +59,7 @@ const Input = ({
       value={value}
     />
     {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
-    {showPasswordStrength && type === 'password' && <PasswordStrength password={value} />}
+    {showPasswordStrength && type === 'password' && <PasswordStrength password={value || ''} />}
   </div>
 );
 

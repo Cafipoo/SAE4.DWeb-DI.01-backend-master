@@ -65,4 +65,95 @@ class PostInteractionController extends AbstractController
             'likes_count' => $likesCount
         ]);
     }
+
+    #[Route('/posts/{id}/comments', name: 'get_post_comments', methods: ['GET'])]
+    public function getComments(
+        Post $post,
+        EntityManagerInterface $entityManager
+    ): JsonResponse {
+        $interactions = $entityManager->getRepository(PostInteraction::class)
+            ->findBy(['post' => $post], ['created_at' => 'ASC']);
+
+        $comments = array_map(function ($interaction) {
+            if ($interaction->getComments() === null) {
+                return null;
+            }
+            return [
+                'id' => $interaction->getId(),
+                'comments' => $interaction->getComments(),
+                'created_at' => $interaction->getCreatedAt() ? $interaction->getCreatedAt()->format('Y-m-d H:i:s') : null,
+                'user' => [
+                    'id' => $interaction->getIdUser()->getId(),
+                    'name' => $interaction->getIdUser()->getName(),
+                    'username' => $interaction->getIdUser()->getUsername(),
+                    'avatar' => $interaction->getIdUser()->getAvatar()
+                ]
+            ];
+        }, $interactions);
+
+        // Filtrer les commentaires nuls
+        $comments = array_filter($comments, function($comment) {
+            return $comment !== null;
+        });
+
+        return new JsonResponse(['comments' => array_values($comments)]);
+    }
+
+    #[Route('/posts/{id}/comment', name: 'add_comment', methods: ['POST'])]
+    public function addComment(
+        Post $post,
+        Request $request,
+        EntityManagerInterface $entityManager
+    ): JsonResponse {
+        $data = json_decode($request->getContent(), true);
+        $userId = $data['userId'] ?? null;
+        $comment = $data['comment'] ?? null;
+
+        if (!$userId || !$comment) {
+            return new JsonResponse(['error' => 'Données manquantes'], 400);
+        }
+
+        $user = $entityManager->getRepository(User::class)->find($userId);
+        if (!$user) {
+            return new JsonResponse(['error' => 'Utilisateur non trouvé'], 404);
+        }
+
+        if ($user->isBanned()) {
+            return new JsonResponse(['error' => 'Vous ne pouvez pas commenter car vous êtes banni'], 403);
+        }
+
+        // Rechercher une interaction existante entre l'utilisateur et le post
+        $interaction = $entityManager->getRepository(PostInteraction::class)->findOneBy([
+            'post' => $post,
+            'user' => $user
+        ]);
+
+        if ($interaction) {
+            // Si une interaction existe, mettre à jour le commentaire
+            $interaction->setComments($comment);
+            $interaction->setCreatedAt(new \DateTime());
+        } else {
+            // Sinon, créer une nouvelle interaction
+            $interaction = new PostInteraction();
+            $interaction->setIdPost($post);
+            $interaction->setIdUser($user);
+            $interaction->setComments($comment);
+            $interaction->setCreatedAt(new \DateTime());
+            $entityManager->persist($interaction);
+        }
+
+        $entityManager->flush();
+
+        return new JsonResponse([
+            'id' => $interaction->getId(),
+            'comments' => $interaction->getComments(),
+            'created_at' => $interaction->getCreatedAt()->format('Y-m-d H:i:s'),
+            'user' => [
+                'id' => $user->getId(),
+                'name' => $user->getName(),
+                'username' => $user->getUsername(),
+                'avatar' => $user->getAvatar()
+            ]
+        ]);
+    }
 } 

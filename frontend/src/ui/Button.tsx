@@ -4,10 +4,9 @@ import { cn } from "../utils/cn";
 const buttonVariants = cva("font-medium focus:outline-none transition-colors", {
   variants: {
     variant: {
-      default: "bg-primary text-[var(--color-white)] shadow-lg hover:opacity-90 focus:ring-[var(--color-primary)] cursor-pointer",
-      secondary: "bg-[var(--color-secondary)] text-[var(--color-white)] shadow-lg hover:opacity-90 focus:ring-[var(--color-secondary)] cursor-pointer",
-      tertiary: "bg-orange text-[var(--color-white)] shadow-lg hover:opacity-90 focus:ring-[var(--color-secondary)] cursor-pointer",
-      destructive: "bg-[var(--color-danger)] text-[var(--color-white)] shadow-lg hover:opacity-90 focus:ring-[var(--color-danger)]",
+      default: "bg-primary text-white shadow-lg hover:opacity-90 focus:ring-primary cursor-pointer",
+      secondary: "bg-secondary text-white shadow-lg hover:opacity-90 focus:ring-secondary cursor-pointer",
+      tertiary: "bg-orange text-white shadow-lg hover:opacity-90 focus:ring-secondary cursor-pointer",
     },
     size: {
       default: "h-10 px-4 py-2",
@@ -32,7 +31,7 @@ const buttonVariants = cva("font-medium focus:outline-none transition-colors", {
 });
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "default" | "secondary" | "tertiary" | "destructive";
+  variant?: "default" | "secondary" | "tertiary";
   size?: "default" | "sm" | "lg" | "xl" | "icon";
   rounded?: "none" | "sm" | "default" | "lg" | "full";
   children?: React.ReactNode;

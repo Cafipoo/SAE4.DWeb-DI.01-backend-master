@@ -292,6 +292,7 @@ class UserController extends AbstractController
             return [
                 'id' => $post->getId(),
                 'content' => $post->getContent(),
+                'media' => $post->getMedia() ? json_decode($post->getMedia()) : [],
                 'created_at' => $post->getCreatedAt()->format('Y-m-d H:i:s')
             ];
         }, $posts);

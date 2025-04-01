@@ -54,6 +54,15 @@ const Profile = () => {
     );
   }, []);
 
+  // Fonction pour gérer l'édition d'un tweet
+  const handleEditTweet = useCallback((editedPost: Post) => {
+    setPosts(prevPosts => 
+      prevPosts.map(post => 
+        post.id === editedPost.id ? editedPost : post
+      )
+    );
+  }, []);
+
   // Écouter l'événement de nouveau tweet
   useEffect(() => {
     const handleNewTweet = (event: CustomEvent<Post>) => {
@@ -86,13 +95,21 @@ const Profile = () => {
     const fetchUserData = async () => {
       try {
         setLoading(true);
+        let userData;
         if (!username) {
-          const userData = await DataRequests.getCurrentUserProfile();
-          setUser(userData);
+          userData = await DataRequests.getCurrentUserProfile();
+        } else {
+          userData = await DataRequests.getUserProfileByUsername(username);
         }
-        else {
-          const userData = await DataRequests.getUserProfileByUsername(username);
-          setUser(userData);
+        setUser(userData);
+
+        // Vérifier si l'utilisateur est déjà suivi
+        const currentUser = localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")!) : null;
+        if (currentUser && userData.id !== currentUser.id) {
+          const isFollowed = await DataRequests.isUserFollowed(currentUser.id, userData.id);
+          if (isFollowed) {
+            setFollowedUsers(prev => [...prev, userData.id]);
+          }
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Une erreur est survenue');
@@ -202,6 +219,8 @@ const Profile = () => {
                       id: post.id,
                       content: post.content,
                       created_at: post.created_at,
+                      media: post.media || [],
+                      liked_by: post.liked_by || [],
                       author: {
                         id: user.id,
                         name: user.name,
@@ -211,10 +230,12 @@ const Profile = () => {
                       },
                       likes_count: post.likes_count,
                       reposts: 0,
-                      replies: 0
+                      replies: 0,
+                      isFollowed: followedUsers.includes(user.id)
                     }}
                     onDelete={handleDeleteTweet}
                     onFollowUpdate={handleFollowUpdate}
+                    onEdit={handleEditTweet}
                   />
                 </div>
               ))

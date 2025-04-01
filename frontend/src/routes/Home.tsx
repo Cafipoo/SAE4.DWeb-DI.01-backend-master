@@ -179,6 +179,15 @@ const Home = () => {
     }
   }, [currentTab]);
 
+  // Ajouter cette fonction pour gérer l'édition d'un tweet
+  const handleEditTweet = useCallback((editedPost: Post) => {
+    setPosts(prevPosts => 
+      prevPosts.map(post => 
+        post.id === editedPost.id ? editedPost : post
+      )
+    );
+  }, []);
+
   return (
     <div className="flex justify-center md:gap-4 min-h-screen bg-black">
       <div className="flex">
@@ -216,6 +225,7 @@ const Home = () => {
                 post={post} 
                 onDelete={handleDeleteTweet}
                 onFollowUpdate={handleFollowUpdate}
+                onEdit={handleEditTweet}
               />
             </div>
           ))}

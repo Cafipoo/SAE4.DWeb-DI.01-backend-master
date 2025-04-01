@@ -38,7 +38,10 @@ class AuthService {
         if (token) {
             headers.set('Authorization', `Bearer ${token}`);
         }
-        headers.set('Content-Type', 'application/json');
+
+        if (!(options.body instanceof FormData)) {
+            headers.set('Content-Type', 'application/json');
+        }
 
         return fetch(`${API_URL}${endpoint}`, {
             ...options,

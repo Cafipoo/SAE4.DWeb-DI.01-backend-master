@@ -55,12 +55,15 @@ const ProfileUpdate = ({ username, initialData, onUpdate }: ProfileUpdateProps) 
 
         try {
             const formDataToSend = new FormData();
-            formDataToSend.append('name', formData.name);
-            formDataToSend.append('username', formData.username);
+            
+            // S'assurer que les valeurs ne sont pas null ou undefined
+            formDataToSend.append('name', formData.name || '');
+            formDataToSend.append('username', formData.username || '');
             formDataToSend.append('bio', formData.bio || '');
             formDataToSend.append('location', formData.location || '');
             formDataToSend.append('siteWeb', formData.siteWeb || '');
             
+            // Ajouter les fichiers seulement s'ils existent
             if (formData.avatar instanceof File) {
                 formDataToSend.append('avatar', formData.avatar);
             }
@@ -68,9 +71,22 @@ const ProfileUpdate = ({ username, initialData, onUpdate }: ProfileUpdateProps) 
                 formDataToSend.append('cover', formData.cover);
             }
 
-            await DataRequests.updateUserProfile(username, formDataToSend);
+            // Déboguer les données envoyées
+            console.log('Données envoyées:', {
+                name: formData.name,
+                username: formData.username,
+                bio: formData.bio,
+                location: formData.location,
+                siteWeb: formData.siteWeb,
+                hasAvatar: formData.avatar instanceof File,
+                hasCover: formData.cover instanceof File
+            });
+
+            const response = await DataRequests.updateUserProfile(username, formDataToSend);
+            console.log('Réponse du serveur:', response);
             onUpdate();
         } catch (err) {
+            console.error('Erreur lors de la mise à jour:', err);
             setError(err instanceof Error ? err.message : 'Une erreur est survenue');
         } finally {
             setIsLoading(false);

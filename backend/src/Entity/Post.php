@@ -29,6 +29,9 @@ class Post
     #[ORM\OneToMany(mappedBy: 'post', targetEntity: PostInteraction::class)]
     private Collection $postInteractions;
 
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $media = null;
+
     public function __construct()
     {
         $this->postInteractions = new ArrayCollection();
@@ -108,6 +111,18 @@ class Post
                 $postInteraction->setIdPost(null);
             }
         }
+
+        return $this;
+    }
+
+    public function getMedia(): ?string
+    {
+        return $this->media;
+    }
+
+    public function setMedia(?string $media): static
+    {
+        $this->media = $media;
 
         return $this;
     }

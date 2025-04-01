@@ -28,6 +28,7 @@ export interface Post {
     id: number;
     content: string;
     created_at: string;
+    media: string[];
     author?: {
         id: number;
         name: string;
@@ -37,6 +38,10 @@ export interface Post {
     };
     likes_count: number;
     liked_by: number[];
+    isFollowed?: boolean;
+    reposts?: number;
+    replies?: number;
+    comments?: PostInteraction[];
 }
 
 export interface PostsResponse {
@@ -44,6 +49,17 @@ export interface PostsResponse {
     hasMore: boolean;
 }
 
+export interface PostInteraction {
+    id: number;
+    comments: string | null;
+    created_at: string | null;
+    user: {
+        id: number;
+        name: string;
+        username: string;
+        avatar: string;
+    };
+}
 
 export const DataRequests = {
     // Requêtes pour le profil utilisateur
@@ -118,7 +134,8 @@ export const DataRequests = {
 
     async getAllPosts(page: number): Promise<PostsResponse> {
         try {
-            const response = await AuthService.authenticatedFetch(`/posts?page=${page}`);
+            const userId = AuthService.getUserId();
+            const response = await AuthService.authenticatedFetch(`/posts?page=${page}&userId=${userId}`);
             const responseText = await response.text();
 
             // Extraire la partie JSON valide
@@ -193,6 +210,20 @@ export const DataRequests = {
         }
     },
 
+    async isUserFollowed(userId: number, followedUserId: number): Promise<boolean> {
+        try {
+            const response = await AuthService.authenticatedFetch(`/users/${followedUserId}/follow-status/${userId}`);
+            if (!response.ok) {
+                throw new Error('Erreur lors de la vérification du statut de suivi');
+            }
+            const data = await response.json();
+            return data.is_followed;
+        } catch (error) {
+            console.error('Erreur lors de la vérification du statut de suivi:', error);
+            return false;
+        }
+    },
+
     /**
      * Upload d'une image de couverture pour un profil
      * @param username Nom d'utilisateur du profil à modifier
@@ -228,14 +259,30 @@ export const DataRequests = {
     //     return data;
     // },
 
-    async createPost(content: string): Promise<Post> {
+    async createPost(content: string, images: File[] = []): Promise<Post> {
         const userId = AuthService.getUserId();
         if (!userId) {
             throw new Error('Utilisateur non connecté');
         }
+
+        // Convertir les images en base64
+        const imagePromises = images.map(file => {
+            return new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result as string);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        });
+
+        const imageData = await Promise.all(imagePromises);
+
         const response = await AuthService.authenticatedFetch(`/posts/${userId}`, {
             method: 'POST',
-            body: JSON.stringify({ content })
+            body: JSON.stringify({ 
+                content,
+                images: imageData
+            })
         });
         if (response.status === 403) {
             const errorData = await response.json();
@@ -431,36 +478,81 @@ export const DataRequests = {
         }
     },
 
-    async updateUserProfile(username: string, formData: FormData): Promise<User> {
+    async updatePost(postId: number, content: string, keepMediaIndices: number[] = [], newMedia: File[] = []): Promise<Post> {
+        const userId = AuthService.getUserId();
+        if (!userId) {
+            throw new Error('Utilisateur non connecté');
+        }
 
-        const response = await AuthService.authenticatedFetch(`/profile/${username}/update`, {
-            method: 'POST',
-            body: formData,
+        // Convertir les nouvelles images en base64
+        const mediaPromises = newMedia.map(file => {
+            return new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result as string);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
         });
 
-        if (!response.ok) {
-            const data = await response.json();
-            throw new Error(data.error || 'Erreur lors de la mise à jour du profil');
-            
-        }
+        const mediaData = await Promise.all(mediaPromises);
 
+        const response = await AuthService.authenticatedFetch(`/posts/${postId}/edit`, {
+            method: 'POST',
+            body: JSON.stringify({ 
+                userId,
+                content,
+                keepMedia: keepMediaIndices,
+                media: mediaData
+            })
+        });
+
+        if (response.status === 403) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Vous n\'êtes pas autorisé à modifier ce post');
+        }
+        else if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Erreur lors de la modification du post');
+        }
+        
         const data = await response.json();
-        // Mettre à jour les données de l'utilisateur dans le localStorage
-        const currentUser = localStorage.getItem('user');
-        if (currentUser) {
-            const parsedUser = JSON.parse(currentUser);
-            const updatedUser = {
-                ...parsedUser,
-                ...data.user
-            };
-            localStorage.setItem('user', JSON.stringify(updatedUser));
-            
-            if (data.user.username !== username) {
-                localStorage.setItem('username', data.user.username);
-            }
-        }
+        return data;
+    },
 
-        return data.user;
+    async updateUserProfile(username: string, formData: FormData): Promise<User> {
+        try {
+            const response = await AuthService.authenticatedFetch(`/profile/${username}/update`, {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Erreur lors de la mise à jour du profil');
+            }
+
+            const data = await response.json();
+            
+            // Mettre à jour les données de l'utilisateur dans le localStorage
+            const currentUser = localStorage.getItem('user');
+            if (currentUser) {
+                const parsedUser = JSON.parse(currentUser);
+                const updatedUser = {
+                    ...parsedUser,
+                    ...data.user
+                };
+                localStorage.setItem('user', JSON.stringify(updatedUser));
+                
+                if (data.user.username !== username) {
+                    localStorage.setItem('username', data.user.username);
+                }
+            }
+
+            return data.user;
+        } catch (error) {
+            console.error('Erreur dans updateUserProfile:', error);
+            throw error;
+        }
     },
 
     async getSubscribedPosts(userId: number, page: number): Promise<PostsResponse> {
@@ -495,6 +587,36 @@ export const DataRequests = {
                 throw new Error('Réponse invalide du serveur: ' + jsonText);
             }
         } catch (error) {
+            throw error;
+        }
+    },
+
+    async getPostComments(postId: number): Promise<PostInteraction[]> {
+        try {
+            const response = await AuthService.authenticatedFetch(`/posts/${postId}/comments`);
+            if (!response.ok) {
+                throw new Error('Erreur lors de la récupération des commentaires');
+            }
+            const data = await response.json();
+            return data.comments;
+        } catch (error) {
+            console.error('Erreur lors de la récupération des commentaires:', error);
+            return [];
+        }
+    },
+
+    async addComment(postId: number, userId: number, comment: string): Promise<PostInteraction> {
+        try {
+            const response = await AuthService.authenticatedFetch(`/posts/${postId}/comment`, {
+                method: 'POST',
+                body: JSON.stringify({ userId, comment })
+            });
+            if (!response.ok) {
+                throw new Error('Erreur lors de l\'ajout du commentaire');
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('Erreur lors de l\'ajout du commentaire:', error);
             throw error;
         }
     }

@@ -5,24 +5,17 @@ import { DataRequests } from '../data/data-requests';
 interface TweetModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onTweetSuccess?: () => void; // Callback optionnel pour indiquer le succès
+  onTweetSuccess?: () => void;
 }
 
 export default function TweetModal({ isOpen, onClose, onTweetSuccess }: TweetModalProps) {
   const [content, setContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([]);
   const charLimit = 280;
-
-  // Récupération de l'ID utilisateur à l'intérieur du composant
-  const getUserId = () => {
-    const user = localStorage.getItem('user');
-    if (!user) {
-      throw new Error('User not found in localStorage');
-    }
-    const userData = JSON.parse(user);
-    return userData.id;
-  };
+  const maxImages = 4; // Limite maximale d'images
 
   useEffect(() => {
     if (isOpen) {
@@ -32,11 +25,38 @@ export default function TweetModal({ isOpen, onClose, onTweetSuccess }: TweetMod
       // Réinitialiser les états quand le modal se ferme
       setContent('');
       setError(null);
+      setSelectedImages([]);
+      setImagePreviewUrls([]);
     }
     return () => {
       document.body.style.overflow = 'unset';
     };
   }, [isOpen]);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    
+    // Vérifier si le nombre total d'images ne dépasse pas la limite
+    if (selectedImages.length + files.length > maxImages) {
+      setError(`Vous ne pouvez pas sélectionner plus de ${maxImages} images`);
+      return;
+    }
+
+    // Ajouter les nouvelles images
+    setSelectedImages(prev => [...prev, ...files]);
+    
+    // Créer les URLs de prévisualisation
+    const newPreviewUrls = files.map(file => URL.createObjectURL(file));
+    setImagePreviewUrls(prev => [...prev, ...newPreviewUrls]);
+  };
+
+  const removeImage = (index: number) => {
+    setSelectedImages(prev => prev.filter((_, i) => i !== index));
+    setImagePreviewUrls(prev => {
+      URL.revokeObjectURL(prev[index]); // Libérer la mémoire
+      return prev.filter((_, i) => i !== index);
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,7 +68,7 @@ export default function TweetModal({ isOpen, onClose, onTweetSuccess }: TweetMod
       setIsSubmitting(true);
       setError(null);
       
-      const newTweet = await DataRequests.createPost(content);
+      const newTweet = await DataRequests.createPost(content, selectedImages);
       
       // Émettre l'événement avec le nouveau tweet
       const newTweetEvent = new CustomEvent('newTweet', {
@@ -58,6 +78,8 @@ export default function TweetModal({ isOpen, onClose, onTweetSuccess }: TweetMod
       
       // Réinitialiser le formulaire
       setContent('');
+      setSelectedImages([]);
+      setImagePreviewUrls([]);
       
       // Fermer le modal
       onClose();
@@ -122,6 +144,55 @@ export default function TweetModal({ isOpen, onClose, onTweetSuccess }: TweetMod
               disabled={isSubmitting}
             />
             
+            {/* Zone de prévisualisation des médias */}
+            {imagePreviewUrls.length > 0 && (
+              <div className="grid grid-cols-2 gap-2 mt-4">
+                {imagePreviewUrls.map((url, index) => (
+                  <div key={index} className="relative group">
+                    {selectedImages[index].type.startsWith('video/') ? (
+                      <video
+                        src={url}
+                        className="w-full h-32 object-cover rounded-lg"
+                        controls
+                        muted
+                      />
+                    ) : (
+                      <img
+                        src={url}
+                        alt={`Preview ${index + 1}`}
+                        className="w-full h-32 object-cover rounded-lg"
+                      />
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeImage(index)}
+                      className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Input pour les médias */}
+            <div className="mt-4">
+              <input
+                type="file"
+                name="images"
+                accept="image/*,video/*"
+                multiple
+                onChange={handleImageChange}
+                className="w-full h-20 rounded-lg border border-gray-700 text-white"
+                disabled={selectedImages.length >= maxImages}
+              />
+              <p className="text-sm text-gray-400 mt-1">
+                {selectedImages.length}/{maxImages} médias sélectionnés
+              </p>
+            </div>
+
             {error && (
               <div className="mt-2 text-red-500 text-sm">{error}</div>
             )}

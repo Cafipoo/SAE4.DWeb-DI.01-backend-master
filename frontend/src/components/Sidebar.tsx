@@ -48,44 +48,45 @@ const Sidebar = () => {
   return (
     <>
       {/* Mobile Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 border-t bg-black border-gray-800 md:hidden z-50">
-        <div className="flex justify-around items-center h-16">
-          {navItems.slice(0, 4).map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`p-2 ${
-                location.pathname === item.path ? 'text-white' : 'text-black'
-              }`}
-            >
-              <Icon name={item.icon} className="w-7 h-7" />
-            </Link>
-          ))}
+      <ul className="fixed bottom-0 left-0 flex justify-around items-center h-16 right-0 border-t bg-black border-gray-800 md:hidden z-50">
+          {navItems.map((item) => (
+            <li key={item.path}>
+              <Link
+                to={item.path}
+                  className={`flex items-center text-xl p-3 rounded-full hover:bg-gray-900 transition-colors list-none ${
+                    location.pathname === item.path
+                      ? 'text-white font-bold'
+                      : 'text-secondary'
+                  }`}
+                >
+                  <Icon name={item.icon} className="w-7 h-7" />
+                </Link>
+              </li>
+            ))}
           <Button
               variant="tertiary"
               size="icon"
               rounded="full"
               onClick={() => setIsTweetModalOpen(true)}
-              className="p-2"
-            >
-              <Icon name="compose" className="w-7 h-7" />
-            </Button>
-            <Button
+              className="flex justify-center items-center"
+          >
+            <Icon name="compose" className="w-7 h-7" />
+          </Button>
+          <Button
                 variant="default"
                 size="icon"
                 rounded="full"
                 onClick={() => AuthService.logout()}
-                className="p-2"
-              >
-                <Icon name="logout" className="w-7 h-7" />
-              </Button>
-        </div>
-      </nav>
+                className="flex justify-center items-center"
+          >
+            <Icon name="logout" className="w-7 h-7" />
+          </Button>
+      </ul>
 
       {/* Desktop Sidebar */}
       <div className="hidden md:flex flex-col fixed h-screen w-72 border-gray-800">
         <div className="px-4">
-          <Link to="/home" className="inline-block p-3 rounded-full hover:bg-red-900">
+          <Link to="/home" className="inline-block p-3 rounded-full">
             <Logo />
           </Link>
         </div>
@@ -99,7 +100,7 @@ const Sidebar = () => {
                   className={`group flex items-center text-xl p-3 rounded-full hover:bg-gray-900 transition-colors ${
                     location.pathname === item.path
                       ? 'text-white font-bold'
-                      : 'text-gray-500'
+                      : 'text-secondary'
                   }`}
                 >
                   <Icon name={item.icon} className="w-7 h-7" />

@@ -65,5 +65,22 @@ class UserInteractionController extends AbstractController
             'is_followed' => !$isFollowed
         ]);
     }
+
+    #[Route('/users/{id}/follow-status/{followerId}', name: 'user_follow_status', methods: ['GET'])]
+    public function getFollowStatus(
+        User $followedUser,
+        int $followerId,
+        EntityManagerInterface $entityManager
+    ): JsonResponse {
+        // Rechercher l'interaction existante
+        $interaction = $entityManager->getRepository(UserInteraction::class)->findOneBy([
+            'user' => $followerId,
+            'secondUser' => $followedUser
+        ]);
+
+        return new JsonResponse([
+            'is_followed' => $interaction ? $interaction->isFollowed() : false
+        ]);
+    }
 } 
 ?>
