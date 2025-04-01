@@ -13,7 +13,6 @@ const Home = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [currentTab, setCurrentTab] = useState<'all' | 'following'>('all');
   const observer = useRef<IntersectionObserver | null>(null);
-  const [followedUsers, setFollowedUsers] = useState<number[]>([]);
 
   // Fonction pour ajouter un nouveau tweet
   const addNewTweet = useCallback((newTweet: Post) => {
@@ -147,37 +146,6 @@ const Home = () => {
     fetchPosts(currentPage);
   }, [currentPage, fetchPosts]);
 
-  // Ajouter cette fonction pour gérer le follow/unfollow
-  const handleFollowUpdate = useCallback((userId: number, isFollowed: boolean) => {
-    setFollowedUsers(prev => {
-      if (isFollowed) {
-        return prev.filter(id => id !== userId);
-      } else {
-        return [...prev, userId];
-      }
-    });
-
-    // Si nous sommes dans l'onglet "following" et que l'utilisateur unfollow
-    if (currentTab === 'following' && isFollowed) {
-      // Supprimer tous les tweets de l'utilisateur unfollowed
-      setPosts(prevPosts => 
-        prevPosts.filter(post => post.author?.id !== userId)
-      );
-    } else {
-      // Sinon, mettre à jour uniquement le statut isFollowed
-      setPosts(prevPosts => 
-        prevPosts.map(post => {
-          if (post.author?.id === userId) {
-            return {
-              ...post,
-              isFollowed: !isFollowed
-            };
-          }
-          return post;
-        })
-      );
-    }
-  }, [currentTab]);
 
   // Ajouter cette fonction pour gérer l'édition d'un tweet
   const handleEditTweet = useCallback((editedPost: Post) => {
@@ -224,7 +192,6 @@ const Home = () => {
               <Tweet 
                 post={post} 
                 onDelete={handleDeleteTweet}
-                onFollowUpdate={handleFollowUpdate}
                 onEdit={handleEditTweet}
               />
             </div>

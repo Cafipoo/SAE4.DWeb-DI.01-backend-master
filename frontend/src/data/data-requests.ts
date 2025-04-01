@@ -12,6 +12,9 @@ export interface User {
     location: string | null;
     siteWeb: string | null;
     banned: boolean;
+    is_banned_by_current_user: boolean;
+    followers_count: number;
+    following_count: number;
 }
 
 export interface AdminApiResponse {
@@ -29,6 +32,7 @@ export interface Post {
     content: string;
     created_at: string;
     media: string[];
+    censored: boolean;
     author?: {
         id: number;
         name: string;
@@ -59,6 +63,26 @@ export interface PostInteraction {
         username: string;
         avatar: string;
     };
+}
+
+interface BannedUser {
+    id: number;
+    username: string;
+    name: string;
+    avatar: string;
+}
+
+export interface AdminPost extends Post {
+    censored: boolean;
+}
+
+export interface AdminPostsResponse {
+    posts: AdminPost[];
+    previous_page: number | null;
+    next_page: number | null;
+    total_posts: number;
+    current_page: number;
+    max_pages: number;
 }
 
 export const DataRequests = {
@@ -213,11 +237,31 @@ export const DataRequests = {
     async isUserFollowed(userId: number, followedUserId: number): Promise<boolean> {
         try {
             const response = await AuthService.authenticatedFetch(`/users/${followedUserId}/follow-status/${userId}`);
-            if (!response.ok) {
-                throw new Error('Erreur lors de la vérification du statut de suivi');
+            const responseText = await response.text();
+
+            // Extraire la partie JSON valide
+            const jsonMatch = responseText.match(/^\{.*\}/);
+            if (!jsonMatch) {
+                throw new Error('Aucun JSON valide trouvé dans la réponse');
             }
-            const data = await response.json();
-            return data.is_followed;
+            const jsonText = jsonMatch[0];
+
+            if (!response.ok) {
+                let errorData;
+                try {
+                    errorData = JSON.parse(jsonText);
+                    throw new Error(errorData.error || 'Erreur lors de la vérification du statut de suivi');
+                } catch (e) {
+                    throw new Error('Réponse invalide du serveur: ' + jsonText);
+                }
+            }
+
+            try {
+                const data = JSON.parse(jsonText);
+                return data.is_followed;
+            } catch (e) {
+                throw new Error('Réponse invalide du serveur: ' + jsonText);
+            }
         } catch (error) {
             console.error('Erreur lors de la vérification du statut de suivi:', error);
             return false;
@@ -594,11 +638,31 @@ export const DataRequests = {
     async getPostComments(postId: number): Promise<PostInteraction[]> {
         try {
             const response = await AuthService.authenticatedFetch(`/posts/${postId}/comments`);
-            if (!response.ok) {
-                throw new Error('Erreur lors de la récupération des commentaires');
+            const responseText = await response.text();
+
+            // Extraire la partie JSON valide
+            const jsonMatch = responseText.match(/^\{.*\}/);
+            if (!jsonMatch) {
+                throw new Error('Aucun JSON valide trouvé dans la réponse');
             }
-            const data = await response.json();
-            return data.comments;
+            const jsonText = jsonMatch[0];
+
+            if (!response.ok) {
+                let errorData;
+                try {
+                    errorData = JSON.parse(jsonText);
+                    throw new Error(errorData.error || 'Erreur lors de la récupération des commentaires');
+                } catch (e) {
+                    throw new Error('Réponse invalide du serveur: ' + jsonText);
+                }
+            }
+
+            try {
+                const data = JSON.parse(jsonText);
+                return data.comments || [];
+            } catch (e) {
+                throw new Error('Réponse invalide du serveur: ' + jsonText);
+            }
         } catch (error) {
             console.error('Erreur lors de la récupération des commentaires:', error);
             return [];
@@ -611,13 +675,73 @@ export const DataRequests = {
                 method: 'POST',
                 body: JSON.stringify({ userId, comment })
             });
-            if (!response.ok) {
-                throw new Error('Erreur lors de l\'ajout du commentaire');
+            if (response.status === 403) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Vous ne pouvez pas commenter car vous êtes banni');
+            }
+            else if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Erreur lors de l\'ajout du commentaire');
             }
             return await response.json();
         } catch (error) {
             console.error('Erreur lors de l\'ajout du commentaire:', error);
             throw error;
         }
-    }
+    },
+
+    async bannedUser(userId: number, bannedUserId: number, isBanned: boolean): Promise<void> {
+        const response = await AuthService.authenticatedFetch(`/users/${bannedUserId}/ban`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ userId, isBanned })
+        });
+        if (response.status === 403) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Vous n\'avez pas les permissions pour bannir cet utilisateur');
+        }
+        else if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Erreur lors du bannissement');
+        }
+    },
+
+    getBannedUsers: async (userId: number): Promise<BannedUser[]> => {
+        try {
+            const response = await AuthService.authenticatedFetch(`/users/${userId}/banned`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Erreur lors de la récupération des utilisateurs bannis:', error);
+            throw error;
+        }
+    },
+
+    async getAdminPosts(page: number = 1): Promise<AdminPostsResponse> {
+        const response = await AuthService.authenticatedFetch(`/admin/posts?page=${page}`);
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Erreur lors de la récupération des posts');
+        }
+        return response.json();
+    },
+
+    async updatePostCensored(postId: number, censored: boolean): Promise<AdminPost> {
+        const response = await AuthService.authenticatedFetch(`/admin/posts/${postId}/censored`, {
+            method: 'POST',
+            body: JSON.stringify({ censored })
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Erreur lors de la mise à jour du post');
+        }
+        return response.json();
+    },
 }; 

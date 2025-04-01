@@ -32,6 +32,9 @@ class Post
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $media = null;
 
+    #[ORM\Column(nullable: true)]
+    private ?bool $censored = null;
+
     public function __construct()
     {
         $this->postInteractions = new ArrayCollection();
@@ -123,6 +126,18 @@ class Post
     public function setMedia(?string $media): static
     {
         $this->media = $media;
+
+        return $this;
+    }
+
+    public function isCensored(): ?bool
+    {
+        return $this->censored;
+    }
+
+    public function setCensored(?bool $censored): static
+    {
+        $this->censored = $censored;
 
         return $this;
     }

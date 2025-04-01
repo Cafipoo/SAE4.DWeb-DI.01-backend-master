@@ -1,43 +1,40 @@
-// import { useState } from 'react';
+import { useState } from 'react';
+import { User } from '../data/data-requests';
+import Button from '../ui/Button';
 
-// interface Tab {
-//   id: string;
-//   label: string;
-// }
+interface ProfileTabsProps {
+  userId: number;
+  activeTab: 'posts' | 'banned';
+  onTabChange: (tab: 'posts' | 'banned') => void;
+}
 
-// const tabs: Tab[] = [
-//   { id: 'posts', label: 'Posts' },
-//   { id: 'reposts', label: 'Reposts' },
-//   { id: 'media', label: 'Médias' },
-//   { id: 'likes', label: 'J\'aime' }
-// ];
+const ProfileTabs = ({ userId, activeTab, onTabChange }: ProfileTabsProps) => {
+  return (
+    <div className="border-b border-gray-800">
+      <div className="flex">
+        <Button
+          onClick={() => onTabChange('posts')}
+          className={`flex-1 py-4 px-4 text-center font-bold transition-colors rounded-none bg-transparent ${
+            activeTab === 'posts'
+              ? 'text-white border-b-2 border-primary'
+              : 'text-secondary hover:text-white'
+          }`}
+        >
+          Posts
+        </Button>
+        <Button
+          onClick={() => onTabChange('banned')}
+          className={`flex-1 py-4 px-4 text-center font-bold transition-colors rounded-none bg-transparent ${
+            activeTab === 'banned'
+              ? 'text-white border-b-2 border-primary'
+              : 'text-secondary hover:text-white'
+          }`}
+        >
+          Utilisateurs bannis
+        </Button>
+      </div>
+    </div>
+  );
+};
 
-// interface ProfileTabsProps {
-//   activeTab: string;
-//   onTabChange: (tabId: string) => void;
-// }
-
-// const ProfileTabs = ({ activeTab, onTabChange }: ProfileTabsProps) => {
-//   return (
-//     <div className="border-b border-gray-800">
-//       <nav className="flex">
-//         {tabs.map((tab) => (
-//           <button
-//             key={tab.id}
-//             onClick={() => onTabChange(tab.id)}
-//             className={`flex-1 py-4 px-4 text-center hover:bg-gray-900/50 transition-colors relative ${
-//               activeTab === tab.id ? 'text-white font-bold' : 'text-gray-500'
-//             }`}
-//           >
-//             {tab.label}
-//             {activeTab === tab.id && (
-//               <div className="absolute bottom-0 left-0 right-0 h-1 bg-blue-500" />
-//             )}
-//           </button>
-//         ))}
-//       </nav>
-//     </div>
-//   );
-// };
-
-// export default ProfileTabs; 
+export default ProfileTabs; 

@@ -26,13 +26,17 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit }: TweetProps) => {
   const [likesCount, setLikesCount] = useState(post.likes_count || 0);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [currentPost, setCurrentPost] = useState<Post>(post);
+  const [currentPost, setCurrentPost] = useState<Post>({
+    ...post,
+    comments: Array.isArray(post.comments) ? post.comments : 
+             typeof post.comments === 'object' && post.comments !== null ? 
+             Object.values(post.comments) : []
+  });
   const [isMediaViewerOpen, setIsMediaViewerOpen] = useState(false);
   const [mediaViewerIndex, setMediaViewerIndex] = useState(0);
-  const [comments, setComments] = useState<PostInteraction[]>([]);
   const [isCommenting, setIsCommenting] = useState(false);
   const [newComment, setNewComment] = useState('');
-  const [isLoadingComments, setIsLoadingComments] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   useEffect(() => {
     if (name.id) {
@@ -41,28 +45,23 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit }: TweetProps) => {
       setIsLiked(likedByArray.includes(name.id));
       setIsFollowed(post.isFollowed || false);
     }
-    setCurrentPost(post);
-    loadComments();
+    setCurrentPost({
+      ...post,
+      comments: Array.isArray(post.comments) ? post.comments : 
+               typeof post.comments === 'object' && post.comments !== null ? 
+               Object.values(post.comments) : []
+    });
   }, [name.id, post]);
   
-  const loadComments = async () => {
-    try {
-      setIsLoadingComments(true);
-      const postComments = await DataRequests.getPostComments(post.id);
-      setComments(postComments);
-    } catch (error) {
-      console.error('Erreur lors du chargement des commentaires:', error);
-    } finally {
-      setIsLoadingComments(false);
-    }
-  };
-
   const handleComment = async () => {
     if (!newComment.trim()) return;
     
     try {
+      setError(null);
       const response = await DataRequests.addComment(post.id, name.id, newComment);
-      const updatedComments = [...comments];
+      const updatedComments = [...(Array.isArray(currentPost.comments) ? currentPost.comments : 
+                                 typeof currentPost.comments === 'object' && currentPost.comments !== null ? 
+                                 Object.values(currentPost.comments) : [])];
       const existingCommentIndex = updatedComments.findIndex(c => c.user.id === name.id);
       
       if (existingCommentIndex !== -1) {
@@ -71,16 +70,18 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit }: TweetProps) => {
         updatedComments.push(response);
       }
       
-      setComments(updatedComments);
+      setCurrentPost({ ...currentPost, comments: updatedComments });
       setNewComment('');
       setIsCommenting(false);
     } catch (error) {
-      console.error('Error adding comment:', error);
+      console.error('Erreur lors de l\'ajout du commentaire:', error);
+      setError(error instanceof Error ? error.message : 'Une erreur est survenue lors de l\'ajout du commentaire');
     }
   };
 
   const handleDelete = async () => {
     try {
+      setError(null);
       await DataRequests.deletePost(post.id);
       // Appeler la fonction onDelete pour mettre à jour l'interface
       if (onDelete) {
@@ -89,40 +90,21 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit }: TweetProps) => {
       setIsDeleteModalOpen(false);
     } catch (error) {
       console.error('Erreur lors de la suppression:', error);
+      setError(error instanceof Error ? error.message : 'Une erreur est survenue lors de la suppression');
     }
   };
 
   const handleLike = async () => {
     try {
+      setError(null);
+      
+      
+      await DataRequests.likePost(post.id, name.id, isLiked);
       setIsLiked(!isLiked);
       setLikesCount(isLiked ? likesCount - 1 : likesCount + 1);
-      await DataRequests.likePost(post.id, name.id, isLiked);
     } catch (error) {
-      // En cas d'erreur, on revient à l'état précédent
-      setIsLiked(!isLiked);
-      setLikesCount(isLiked ? likesCount + 1 : likesCount - 1);
       console.error('Erreur lors de l\'ajout de like:', error);
-    }
-  };
-
-  const handleFollow = async () => {
-    try {
-      if (!post.author?.id) {
-        console.error('ID de l\'auteur non disponible');
-        return;
-      }
-      const currentIsFollowed = isFollowed;
-      setIsFollowed(!currentIsFollowed);
-      await DataRequests.followUser(name.id, post.author.id, currentIsFollowed);
-      
-      // Appeler la fonction de mise à jour du parent
-      if (onFollowUpdate) {
-        onFollowUpdate(post.author.id, currentIsFollowed);
-      }
-    } catch (error) {
-      // En cas d'erreur, on revient à l'état précédent
-      setIsFollowed(!isFollowed);
-      console.error('Erreur lors du suivi:', error);
+      setError(error instanceof Error ? error.message : 'Une erreur est survenue lors de l\'ajout du like');
     }
   };
 
@@ -155,6 +137,11 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit }: TweetProps) => {
       {author && author.banned === true ? (
         <div className="border-b border-gray-700 p-4 hover:bg-gray-900/50 transition-colors cursor-pointer">
           <p className="text-white">Le propriétaire de ce tweet a été banni</p>
+        </div>
+      ) : 
+      currentPost.censored ? (
+        <div className="border-b border-gray-700 p-4 hover:bg-gray-900/50 transition-colors cursor-pointer">
+          <p className="text-white">Ce tweet a été censuré</p>
         </div>
       ) : (
         <>
@@ -197,14 +184,7 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit }: TweetProps) => {
                       </Button>
                     </div>
                   ) : (
-                    <Button 
-                      variant={isFollowed ? "secondary" : "tertiary"} 
-                      size="sm" 
-                      rounded="full"
-                      onClick={handleFollow}
-                    >
-                      {isFollowed ? "Ne plus suivre" : "Suivre"}
-                    </Button>
+                    null
                   )}
                 </div>
                 <div>
@@ -290,26 +270,26 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit }: TweetProps) => {
 
                 {/* Commentaires */}
                 <div className="mt-4 space-y-4">
-                    {comments.map((comment) => (
-                        <div key={comment.id} className="flex gap-3">
-                            <img
-                                src={comment.user.avatar || '/default-avatar.png'}
-                                alt={comment.user.name}
-                                className="w-8 h-8 rounded-full text-white"
-                            />
-                            <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                    <span className="font-medium text-white">{comment.user.name}</span>
-                                    <span className="text-secondary">@{comment.user.username}</span>
-                                    <span className="text-secondary">·</span>
-                                    <span className="text-secondary">
-                                        {comment.created_at ? new Date(comment.created_at).toLocaleDateString() : ''}
-                                    </span>
-                                </div>
-                                <p className="mt-1 text-white">{comment.comments}</p>
-                            </div>
+                  {Array.isArray(currentPost.comments) && currentPost.comments.map((comment) => (
+                    <div key={comment.id} className="flex gap-3">
+                      <img
+                        src={comment.user.avatar || '/default-avatar.png'}
+                        alt={comment.user.name}
+                        className="w-8 h-8 rounded-full text-white"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-white">{comment.user.name}</span>
+                          <span className="text-secondary">@{comment.user.username}</span>
+                          <span className="text-secondary">·</span>
+                          <span className="text-secondary">
+                            {comment.created_at ? new Date(comment.created_at).toLocaleDateString() : ''}
+                          </span>
                         </div>
-                    ))}
+                        <p className="mt-1 text-white">{comment.comments}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
 
                 {/* Zone de commentaire */}
@@ -341,6 +321,12 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit }: TweetProps) => {
                             </Button>
                         </div>
                     </div>
+                )}
+
+                {error && (
+                  <div className="mt-2 p-2 bg-red-500/10 border border-red-500/20 rounded text-red-500 text-sm">
+                    {error}
+                  </div>
                 )}
               </div>
             </div>

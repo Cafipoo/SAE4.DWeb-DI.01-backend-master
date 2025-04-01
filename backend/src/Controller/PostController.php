@@ -77,6 +77,7 @@ class PostController extends AbstractController
                 'content' => $post->getContent(),
                 'created_at' => $post->getCreatedAt()->format('Y-m-d H:i:s'),
                 'media' => $post->getMedia() ? json_decode($post->getMedia()) : [],
+                'censored' => $post->isCensored(),
                 'author' => [
                     'id' => $user->getId(),
                     'name' => $user->getName(),
@@ -506,6 +507,98 @@ class PostController extends AbstractController
         } catch (\Exception $e) {
             return $this->json([
                 'errors' => ['content' => 'Une erreur est survenue lors de la modification du post: ' . $e->getMessage()]
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    #[Route('/admin/posts', name: 'admin.posts.index', methods: ['GET'])]
+    public function adminIndex(Request $request, PostRepository $postRepository): JsonResponse
+    {
+        $postsPerPage = 5;
+        $page = max(1, $request->query->getInt('page', 1));
+        $offset = ($page - 1) * $postsPerPage;
+
+        $paginator = $postRepository->paginateAllOrderedByLatest($offset, $postsPerPage);
+        
+        $totalPosts = count($paginator);
+        $maxPages = ceil($totalPosts / $postsPerPage);
+
+        $posts = [];
+        foreach ($paginator as $post) {
+            $user = $post->getUser();
+            
+            $posts[] = [
+                'id' => $post->getId(),
+                'content' => $post->getContent(),
+                'created_at' => $post->getCreatedAt()->format('Y-m-d H:i:s'),
+                'media' => $post->getMedia() ? json_decode($post->getMedia()) : [],
+                'censored' => $post->isCensored(),
+                'author' => [
+                    'id' => $user->getId(),
+                    'name' => $user->getName(),
+                    'username' => $user->getUsername(),
+                    'avatar' => $user->getAvatar(),
+                    'email' => $user->getEmail(),
+                    'banned' => $user->isBanned()
+                ]
+            ];
+        }
+
+        $previousPage = ($page > 1) ? $page - 1 : null;
+        $nextPage = ($page < $maxPages) ? $page + 1 : null;
+
+        return $this->json([
+            'posts' => $posts,
+            'previous_page' => $previousPage,
+            'next_page' => $nextPage,
+            'total_posts' => $totalPosts,
+            'current_page' => $page,
+            'max_pages' => $maxPages,
+            'posts_per_page' => $postsPerPage
+        ]);
+    }
+
+    #[Route('/admin/posts/{id}/censored', name: 'admin.posts.censored', methods: ['POST'])]
+    public function updateCensored(
+        int $id,
+        Request $request,
+        PostRepository $postRepository,
+        EntityManagerInterface $entityManager
+    ): JsonResponse {
+        try {
+            $data = json_decode($request->getContent(), true);
+            if (!isset($data['censored'])) {
+                return $this->json(['error' => 'Le statut de censure est requis'], Response::HTTP_BAD_REQUEST);
+            }
+
+            $post = $postRepository->find($id);
+            if (!$post) {
+                return $this->json(['error' => 'Post non trouvé'], Response::HTTP_NOT_FOUND);
+            }
+
+            $post->setCensored($data['censored']);
+            $entityManager->persist($post);
+            $entityManager->flush();
+
+            return $this->json([
+                'id' => $post->getId(),
+                'content' => $post->getContent(),
+                'created_at' => $post->getCreatedAt()->format('Y-m-d H:i:s'),
+                'media' => $post->getMedia() ? json_decode($post->getMedia()) : [],
+                'censored' => $post->isCensored(),
+                'author' => [
+                    'id' => $post->getUser()->getId(),
+                    'name' => $post->getUser()->getName(),
+                    'username' => $post->getUser()->getUsername(),
+                    'avatar' => $post->getUser()->getAvatar(),
+                    'email' => $post->getUser()->getEmail(),
+                    'banned' => $post->getUser()->isBanned()
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return $this->json([
+                'error' => 'Une erreur est survenue lors de la mise à jour du post',
+                'message' => $e->getMessage()
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

@@ -24,6 +24,9 @@ class UserInteraction
     #[ORM\Column(nullable: true)]
     private ?bool $followed = null;
 
+    #[ORM\Column(nullable: true)]
+    private ?bool $isBanned = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -61,6 +64,18 @@ class UserInteraction
     public function setFollowed(?bool $followed): static
     {
         $this->followed = $followed;
+
+        return $this;
+    }
+
+    public function isBanned(): ?bool
+    {
+        return $this->isBanned;
+    }
+
+    public function setIsBanned(?bool $isBanned): static
+    {
+        $this->isBanned = $isBanned;
 
         return $this;
     }

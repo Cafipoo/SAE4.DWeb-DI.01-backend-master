@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import ProfileHeader from '../components/ProfileHeader';
 import ProfileInfo from '../components/ProfileInfo';
+import ProfileTabs from '../components/ProfileTabs';
 import Tweet from '../components/Tweet';
 import Sidebar from '../components/Sidebar';
 import { DataRequests, User, Post } from '../data/data-requests';
@@ -11,12 +12,14 @@ const Profile = () => {
   const { username } = useParams<{ username: string }>();
   const [user, setUser] = useState<User | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [bannedUsers, setBannedUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [followedUsers, setFollowedUsers] = useState<number[]>([]);
+  const [activeTab, setActiveTab] = useState<'posts' | 'banned'>('posts');
 
   // Fonction pour ajouter un nouveau tweet
   const addNewTweet = useCallback((newTweet: Post) => {
@@ -32,7 +35,7 @@ const Profile = () => {
     setPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
   }, []);
 
-  const handleFollowUpdate = useCallback((userId: number, isFollowed: boolean) => {
+  const handleFollowUpdate = (userId: number, isFollowed: boolean) => {
     setFollowedUsers(prev => {
       if (isFollowed) {
         return prev.filter(id => id !== userId);
@@ -40,19 +43,21 @@ const Profile = () => {
         return [...prev, userId];
       }
     });
+  };
 
-    setPosts(prevPosts => 
-      prevPosts.map(post => {
-        if (post.author?.id === userId) {
-          return {
-            ...post,
-            isFollowed: !isFollowed
-          };
+  const handleBannedUpdate = (userId: number, isBanned: boolean) => {
+    setBannedUsers(prev => {
+      if (isBanned) {
+        return prev.filter(user => user.id !== userId);
+      } else {
+        const userToAdd = user;
+        if (userToAdd) {
+          return [...prev, userToAdd];
         }
-        return post;
-      })
-    );
-  }, []);
+        return prev;
+      }
+    });
+  };
 
   // Fonction pour gérer l'édition d'un tweet
   const handleEditTweet = useCallback((editedPost: Post) => {
@@ -111,6 +116,11 @@ const Profile = () => {
             setFollowedUsers(prev => [...prev, userData.id]);
           }
         }
+
+        // Vérifier si l'utilisateur est banni
+        if (userData.is_banned_by_current_user) {
+          setBannedUsers([userData]);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Une erreur est survenue');
       } finally {
@@ -150,6 +160,22 @@ const Profile = () => {
     fetchPosts();
   }, [currentPage, user]);
 
+  const handleTabChange = async (tab: 'posts' | 'banned') => {
+    setActiveTab(tab);
+    if (tab === 'banned' && user) {
+      try {
+        setLoading(true);
+        const bannedUsersData = await DataRequests.getBannedUsers(user.id);
+        setBannedUsers(bannedUsersData as User[]);
+      } catch (err) {
+        console.error('Erreur lors du chargement des utilisateurs bannis:', err);
+        setError(err instanceof Error ? err.message : 'Une erreur est survenue lors du chargement des utilisateurs bannis');
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
@@ -184,78 +210,101 @@ const Profile = () => {
           avatar={user.avatar || ''}
           displayName={user.name}
           username={user.username}
-
         />
         
         <ProfileInfo
+          userId={user.id}
           bio={user.bio || 'Aucune bio'}
           location={user.location || ''}
           website={user.siteWeb || ''}
           joinedDate={user.joined_date}
           stats={{
-            following: 0,
-            followers: 0
+            following: user.following_count,
+            followers: user.followers_count
           }}
+          isInitiallyFollowed={followedUsers.includes(user.id)}
+          isInitiallyBanned={bannedUsers.some(bannedUser => bannedUser.id === user.id)}
+          onFollowUpdate={handleFollowUpdate}
         />
 
-        <div className="border-b border-gray-800">
-          <div className="px-4">
-            <div className="text-white font-bold py-4">
-              Posts
-            </div>
-          </div>
-        </div>
+        <ProfileTabs userId={user.id} activeTab={activeTab} onTabChange={handleTabChange} />
 
         <div className="px-4">
           <div className="space-y-4 py-4">
-            {posts.length > 0 ? (
-              posts.map((post, index) => (
-                <div
-                  key={post.id}
-                  ref={index === posts.length - 1 ? lastPostElementRef : undefined}
-                >
-                  <Tweet
-                    post={{
-                      id: post.id,
-                      content: post.content,
-                      created_at: post.created_at,
-                      media: post.media || [],
-                      liked_by: post.liked_by || [],
-                      author: {
-                        id: user.id,
-                        name: user.name,
-                        username: user.username,
-                        avatar: user.avatar || '',
-                        banned: user.banned
-                      },
-                      likes_count: post.likes_count,
-                      reposts: 0,
-                      replies: 0,
-                      isFollowed: followedUsers.includes(user.id)
-                    }}
-                    onDelete={handleDeleteTweet}
-                    onFollowUpdate={handleFollowUpdate}
-                    onEdit={handleEditTweet}
-                  />
-                </div>
-              ))
+            {activeTab === 'posts' ? (
+              <>
+                {posts.length > 0 ? (
+                  posts.map((post, index) => (
+                    <div
+                      key={post.id}
+                      ref={index === posts.length - 1 ? lastPostElementRef : undefined}
+                    >
+                      <Tweet
+                        post={{
+                          id: post.id,
+                          content: post.content,
+                          created_at: post.created_at,
+                          media: post.media || [],
+                          liked_by: post.liked_by || [],
+                          author: {
+                            id: user.id,
+                            name: user.name,
+                            username: user.username,
+                            avatar: user.avatar || '',
+                            banned: user.banned
+                          },
+                          likes_count: post.likes_count,
+                          reposts: 0,
+                          replies: 0,
+                          isFollowed: followedUsers.includes(user.id)
+                        }}
+                        onDelete={handleDeleteTweet}
+                        onFollowUpdate={handleFollowUpdate}
+                        onEdit={handleEditTweet}
+                      />
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-gray-500 text-center py-8">
+                    Aucun post pour le moment
+                  </div>
+                )}
+
+                {loadingMore && (
+                  <div className="text-center py-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto"></div>
+                    <p className="text-gray-500 mt-2">Chargement des tweets...</p>
+                  </div>
+                )}
+
+                {!hasMore && posts.length > 0 && (
+                  <div className="text-gray-500 text-center py-4">
+                    Vous avez vu tous les tweets
+                  </div>
+                )}
+              </>
             ) : (
-              <div className="text-gray-500 text-center py-8">
-                Aucun post pour le moment
-              </div>
-            )}
-
-            {loadingMore && (
-              <div className="text-center py-4">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto"></div>
-                <p className="text-gray-500 mt-2">Chargement des tweets...</p>
-              </div>
-            )}
-
-            {!hasMore && posts.length > 0 && (
-              <div className="text-gray-500 text-center py-4">
-                Vous avez vu tous les tweets
-              </div>
+              <>
+                {bannedUsers.length > 0 ? (
+                  bannedUsers.map((bannedUser) => (
+                    <div key={bannedUser.id} className="flex items-center p-4 border-b border-gray-800">
+                      <img
+                        src={bannedUser.avatar || '/default-avatar.png'}
+                        alt={bannedUser.name}
+                        className="w-12 h-12 rounded-full mr-4"
+                      />
+                      <div>
+                        <div className="font-bold">{bannedUser.name}</div>
+                        <div className="text-gray-500">@{bannedUser.username}</div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-gray-500 text-center py-8">
+                    Aucun utilisateur banni
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { DataRequests, User, AdminApiResponse } from '../data/data-requests';
+import { DataRequests, User, AdminApiResponse, AdminPost, AdminPostsResponse } from '../data/data-requests';
 
 const Backoffice = () => {
   const navigate = useNavigate();
   const [users, setUsers] = useState<User[]>([]);
+  const [posts, setPosts] = useState<AdminPost[]>([]);
   const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentUserPage, setCurrentUserPage] = useState(1);
+  const [currentPostPage, setCurrentPostPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [pagination, setPagination] = useState<Omit<AdminApiResponse, 'users'> | null>(null);
+  const [userPagination, setUserPagination] = useState<Omit<AdminApiResponse, 'users'> | null>(null);
+  const [postPagination, setPostPagination] = useState<Omit<AdminPostsResponse, 'posts'> | null>(null);
 
   useEffect(() => {
     const isAdmin = localStorage.getItem('adminAuth') === 'true';
@@ -19,26 +22,35 @@ const Backoffice = () => {
   }, [navigate]);
 
   useEffect(() => {
-    const fetchUsers = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        const data = await DataRequests.getAdminUsers(currentPage);
-        setUsers(data.users || []);
-        const { users: _, ...paginationData } = data;
-        setPagination(paginationData);
+        const [usersData, postsData] = await Promise.all([
+          DataRequests.getAdminUsers(currentUserPage),
+          DataRequests.getAdminPosts(currentPostPage)
+        ]);
+
+        setUsers(usersData.users || []);
+        const { users: _, ...userPaginationData } = usersData;
+        setUserPagination(userPaginationData);
+
+        setPosts(postsData.posts || []);
+        const { posts: __, ...postPaginationData } = postsData;
+        setPostPagination(postPaginationData);
       } catch (error) {
-        console.error('Erreur lors de la récupération des utilisateurs:', error);
-        setError('Impossible de charger les utilisateurs. Veuillez réessayer plus tard.');
+        console.error('Erreur lors de la récupération des données:', error);
+        setError('Impossible de charger les données. Veuillez réessayer plus tard.');
         setUsers([]);
+        setPosts([]);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchUsers();
-  }, [currentPage]);
+    fetchData();
+  }, [currentUserPage, currentPostPage]);
 
   const handleLogout = () => {
     localStorage.removeItem('adminAuth');
@@ -67,12 +79,25 @@ const Backoffice = () => {
       
       await DataRequests.updateUser(updatedUser.id, userData);
       // Rafraîchir la liste des utilisateurs
-      const data = await DataRequests.getAdminUsers(currentPage);
+      const data = await DataRequests.getAdminUsers(currentUserPage);
       setUsers(data.users || []);
       setEditingUser(null);
     } catch (err: any) {
       console.error('Erreur complète:', err);
       setError(err.message || 'Une erreur est survenue lors de la mise à jour');
+    }
+  };
+
+  const handleToggleCensored = async (post: AdminPost) => {
+    try {
+      setError(null);
+      await DataRequests.updatePostCensored(post.id, !post.censored);
+      // Rafraîchir la liste des posts
+      const data = await DataRequests.getAdminPosts(currentPostPage);
+      setPosts(data.posts || []);
+    } catch (err: any) {
+      console.error('Erreur complète:', err);
+      setError(err.message || 'Une erreur est survenue lors de la mise à jour du post');
     }
   };
 
@@ -89,11 +114,13 @@ const Backoffice = () => {
           </button>
         </div>
 
-        <div className="bg-gray-900 rounded-lg p-6">
+        {error && (
+          <div className="text-red-500 text-center py-4 mb-8">{error}</div>
+        )}
+
+        {/* Section Utilisateurs */}
+        <div className="bg-gray-900 rounded-lg p-6 mb-8">
           <h2 className="text-xl font-semibold mb-4">Utilisateurs</h2>
-          {error && (
-            <div className="text-red-500 text-center py-4">{error}</div>
-          )}
           {loading ? (
             <div className="text-center py-4">Chargement...</div>
           ) : (
@@ -135,7 +162,7 @@ const Backoffice = () => {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={5} className="text-center py-4 text-gray-500">
+                        <td colSpan={8} className="text-center py-4 text-gray-500">
                           Aucun utilisateur trouvé
                         </td>
                       </tr>
@@ -144,26 +171,141 @@ const Backoffice = () => {
                 </table>
               </div>
 
-              {pagination && users.length > 0 && (
+              {userPagination && users.length > 0 && (
                 <div className="mt-4 flex justify-between items-center">
                   <div className="text-sm text-gray-400">
-                    {pagination.total_users} : utilisateurs au total
+                    {userPagination.total_users} : utilisateurs au total
                   </div>
                   <div className="flex gap-2">
-                    {pagination.previous_page !== null && (
+                    {userPagination.previous_page !== null && (
                       <button
-                        onClick={() => setCurrentPage(pagination.previous_page!)}
+                        onClick={() => setCurrentUserPage(userPagination.previous_page!)}
                         className="px-3 py-1 bg-gray-800 rounded hover:bg-gray-700"
                       >
                         Précédent
                       </button>
                     )}
                     <span className="px-3 py-1">
-                      Page {pagination.current_page} sur {pagination.max_pages}
+                      Page {userPagination.current_page} sur {userPagination.max_pages}
                     </span>
-                    {pagination.next_page !== null && (
+                    {userPagination.next_page !== null && (
                       <button
-                        onClick={() => setCurrentPage(pagination.next_page!)}
+                        onClick={() => setCurrentUserPage(userPagination.next_page!)}
+                        className="px-3 py-1 bg-gray-800 rounded hover:bg-gray-700"
+                      >
+                        Suivant
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Section Posts */}
+        <div className="bg-gray-900 rounded-lg p-6">
+          <h2 className="text-xl font-semibold mb-4">Posts</h2>
+          {loading ? (
+            <div className="text-center py-4">Chargement...</div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-800">
+                      <th className="text-left py-3 px-4">ID</th>
+                      <th className="text-left py-3 px-4">Auteur</th>
+                      <th className="text-left py-3 px-4">Contenu</th>
+                      <th className="text-left py-3 px-4">Médias</th>
+                      <th className="text-left py-3 px-4">Date</th>
+                      <th className="text-left py-3 px-4">Censuré</th>
+                      <th className="text-left py-3 px-4">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {posts && posts.length > 0 ? (
+                      posts.map(post => (
+                        <tr key={post.id} className="border-b border-gray-800">
+                          <td className="py-3 px-4">{post.id}</td>
+                          <td className="py-3 px-4">{post.author?.username || 'Anonyme'}</td>
+                          <td className="py-3 px-4 max-w-md truncate">{post.content}</td>
+                          <td className="py-3 px-4 min-w-48">
+                            {post.media && post.media.length > 0 ? (
+                              <div className="flex gap-2">
+                                {post.media.map((mediaUrl, index) => {
+                                  const isVideo = mediaUrl.match(/\.(mp4|webm|ogg)$/i);
+                                  return (
+                                    <div key={index} className="relative">
+                                      {isVideo ? (
+                                        <video
+                                          src={`http://localhost:8080/uploads/posts/${mediaUrl}`}
+                                          className="w-16 h-16 object-cover rounded cursor-pointer"
+                                          onClick={() => window.open(`http://localhost:8080/uploads/posts/${mediaUrl}`, '_blank')}
+                                        />
+                                      ) : (
+                                        <img
+                                          src={`http://localhost:8080/uploads/posts/${mediaUrl}`}
+                                          alt={`Média ${index + 1}`}
+                                          className="w-16 h-16 object-cover rounded cursor-pointer"
+                                          onClick={() => window.open(`http://localhost:8080/uploads/posts/${mediaUrl}`, '_blank')}
+                                        />
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <span className="text-gray-500">Aucun média</span>
+                            )}
+                          </td>
+                          <td className="py-3 px-4">{post.created_at}</td>
+                          <td className="py-3 px-4">{post.censored ? 'Oui' : 'Non'}</td>
+                          <td className="py-3 px-4">
+                            <button
+                              onClick={() => handleToggleCensored(post)}
+                              className={`px-3 py-1 rounded ${
+                                post.censored 
+                                  ? 'bg-green-500 hover:bg-green-600' 
+                                  : 'bg-red-500 hover:bg-red-600'
+                              } text-white`}
+                            >
+                              {post.censored ? 'Décensurer' : 'Censurer'}
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={6} className="text-center py-4 text-gray-500">
+                          Aucun post trouvé
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {postPagination && posts.length > 0 && (
+                <div className="mt-4 flex justify-between items-center">
+                  <div className="text-sm text-gray-400">
+                    {postPagination.total_posts} : posts au total
+                  </div>
+                  <div className="flex gap-2">
+                    {postPagination.previous_page !== null && (
+                      <button
+                        onClick={() => setCurrentPostPage(postPagination.previous_page!)}
+                        className="px-3 py-1 bg-gray-800 rounded hover:bg-gray-700"
+                      >
+                        Précédent
+                      </button>
+                    )}
+                    <span className="px-3 py-1">
+                      Page {postPagination.current_page} sur {postPagination.max_pages}
+                    </span>
+                    {postPagination.next_page !== null && (
+                      <button
+                        onClick={() => setCurrentPostPage(postPagination.next_page!)}
                         className="px-3 py-1 bg-gray-800 rounded hover:bg-gray-700"
                       >
                         Suivant

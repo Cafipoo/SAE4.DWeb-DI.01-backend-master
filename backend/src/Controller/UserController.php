@@ -12,9 +12,25 @@ use Symfony\Component\Routing\Annotation\Route;
 use Doctrine\ORM\Tools\Pagination\Paginator;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
+use App\Repository\UserInteractionRepository;
+use App\Entity\UserInteraction;
 
 class UserController extends AbstractController
 {
+    private UserRepository $userRepository;
+    private UserInteractionRepository $userInteractionRepository;
+    private EntityManagerInterface $entityManager;
+
+    public function __construct(
+        UserRepository $userRepository,
+        UserInteractionRepository $userInteractionRepository,
+        EntityManagerInterface $entityManager
+    ) {
+        $this->userRepository = $userRepository;
+        $this->userInteractionRepository = $userInteractionRepository;
+        $this->entityManager = $entityManager;
+    }
+
     #[Route('/users', name: 'users.index', methods: ['GET'])]
     public function index(Request $request, UserRepository $userRepository): JsonResponse
     {
@@ -96,16 +112,39 @@ class UserController extends AbstractController
         return $this->json($userData);
     }
     #[Route('/profile/{username}', name: 'user.find', methods: ['GET'])]
-    public function find(Request $request, UserRepository $userRepository, PostRepository $postRepository, string $username): JsonResponse
-    {
+    public function find(
+        Request $request, 
+        UserRepository $userRepository, 
+        PostRepository $postRepository, 
+        UserInteractionRepository $userInteractionRepository,
+        string $username
+    ): JsonResponse {
         $user = $userRepository->findOneBy(['username' => $username]);
         if (!$user) {
-            return $this->json(['error' => 'User not found'], Response::HTTP_NOT_FOUND);
+            return new JsonResponse(['error' => 'Utilisateur non trouvé'], Response::HTTP_NOT_FOUND);
         }
 
+        // Récupérer l'utilisateur connecté
+        $currentUser = $this->getUser();
+        if (!$currentUser) {
+            return new JsonResponse(['error' => 'Utilisateur non connecté'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        // Vérifier si l'utilisateur connecté a banni l'utilisateur du profil
+        $interaction = $userInteractionRepository->findOneBy([
+            'user' => $currentUser,
+            'secondUser' => $user
+        ]);
+        $isBanned = $interaction ? $interaction->isBanned() : false;
+
+        // Récupérer les posts de l'utilisateur
         $posts = $postRepository->findBy(['user' => $user], ['created_at' => 'DESC']);
 
-        $userData = [
+        // Compter les followers et following
+        $followersCount = $userInteractionRepository->count(['secondUser' => $user, 'followed' => true]);
+        $followingCount = $userInteractionRepository->count(['user' => $user, 'followed' => true]);
+
+        return new JsonResponse([
             'id' => $user->getId(),
             'username' => $user->getUsername(),
             'name' => $user->getName(),
@@ -116,23 +155,18 @@ class UserController extends AbstractController
             'bio' => $user->getBio(),
             'location' => $user->getLocation(),
             'siteWeb' => $user->getSiteWeb(),
+            'banned' => $user->isBanned(),
+            'is_banned_by_current_user' => $isBanned,
+            'followers_count' => $followersCount,
+            'following_count' => $followingCount,
             'posts' => array_map(function($post) {
-                $postAvatar = $post->getUser()->getAvatar();
                 return [
                     'id' => $post->getId(),
                     'content' => $post->getContent(),
-                    'created_at' => $post->getCreatedAt()->format('Y-m-d H:i:s'),
-                    'author' => [
-                        'name' => $post->getUser()->getName(),
-                        'username' => $post->getUser()->getUsername(),
-                        'avatar' => $postAvatar,
-                        'banned' => $post->getUser()->isBanned()
-                    ]
+                    'created_at' => $post->getCreatedAt()->format('Y-m-d H:i:s')
                 ];
             }, $posts)
-        ];
-
-        return $this->json($userData);
+        ]);
     }
 
     #[Route('/update/user/{id}', name: 'user.update', methods: ['POST'])]
@@ -494,4 +528,35 @@ class UserController extends AbstractController
         }
     }
 
+    #[Route('/users/{id}/banned', name: 'get_banned_users', methods: ['GET'], format: 'json')]
+    public function getBannedUsers(int $id): JsonResponse
+    {
+        $user = $this->userRepository->find($id);
+        if (!$user) {
+            return $this->json(['error' => 'User not found'], 404);
+        }
+
+        // Récupérer tous les utilisateurs bannis par l'utilisateur
+        $bannedUsers = $this->userInteractionRepository->findBy([
+            'user' => $user,
+            'isBanned' => true
+        ]);
+
+        // Si aucun utilisateur banni, retourner un tableau vide
+        if (empty($bannedUsers)) {
+            return $this->json([]);
+        }
+
+        $bannedUsersData = array_map(function($interaction) {
+            $bannedUser = $interaction->getSecondUser();
+            return [
+                'id' => $bannedUser->getId(),
+                'username' => $bannedUser->getUsername(),
+                'name' => $bannedUser->getName(),
+                'avatar' => $bannedUser->getAvatar()
+            ];
+        }, $bannedUsers);
+
+        return $this->json($bannedUsersData);
+    }
 }

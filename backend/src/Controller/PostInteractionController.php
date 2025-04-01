@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\Post;
 use App\Entity\User;
 use App\Entity\PostInteraction;
+use App\Entity\UserInteraction;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -33,6 +34,18 @@ class PostInteractionController extends AbstractController
         // Vérifier si l'utilisateur est banni
         if ($user->isBanned()) {
             return new JsonResponse(['error' => 'Vous ne pouvez pas liker car vous êtes banni'], 403);
+        }
+
+        // Vérifier si l'utilisateur est banni par l'auteur du post
+        $postAuthor = $post->getUser();
+        $interaction = $entityManager->getRepository(UserInteraction::class)->findOneBy([
+            'user' => $postAuthor,
+            'secondUser' => $user,
+            'isBanned' => true
+        ]);
+
+        if ($interaction) {
+            return new JsonResponse(['error' => 'Vous ne pouvez pas interagir avec ce post car l\'auteur vous a banni'], 403);
         }
 
         // Rechercher une interaction existante
@@ -120,6 +133,18 @@ class PostInteractionController extends AbstractController
 
         if ($user->isBanned()) {
             return new JsonResponse(['error' => 'Vous ne pouvez pas commenter car vous êtes banni'], 403);
+        }
+
+        // Vérifier si l'utilisateur est banni par l'auteur du post
+        $postAuthor = $post->getUser();
+        $interaction = $entityManager->getRepository(UserInteraction::class)->findOneBy([
+            'user' => $postAuthor,
+            'secondUser' => $user,
+            'isBanned' => true
+        ]);
+
+        if ($interaction) {
+            return new JsonResponse(['error' => 'Vous ne pouvez pas interagir avec ce post car l\'auteur vous a banni'], 403);
         }
 
         // Rechercher une interaction existante entre l'utilisateur et le post
