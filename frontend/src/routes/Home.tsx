@@ -4,6 +4,7 @@ import Sidebar from '../components/Sidebar';
 import HomeTab from '../components/HomeTab';
 import { DataRequests, Post } from '../data/data-requests';
 import Icon from '../ui/Icon';
+import SearchBar, { SearchFilters } from '../components/SearchBar';
 
 const Home = () => {
   const [posts, setPosts] = useState<Post[]>([]);
@@ -12,6 +13,14 @@ const Home = () => {
   const [hasMore, setHasMore] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [currentTab, setCurrentTab] = useState<'all' | 'following'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [initialSearchQuery, setInitialSearchQuery] = useState('');
+  const [searchFilters, setSearchFilters] = useState<SearchFilters>({
+    dateRange: 'all',
+    contentType: 'all',
+    userId: null
+  });
+  const [isSearching, setIsSearching] = useState(false);
   const observer = useRef<IntersectionObserver | null>(null);
 
   // Fonction pour ajouter un nouveau tweet
@@ -55,6 +64,38 @@ const Home = () => {
     }
   }, [currentTab]);
 
+  // Fonction pour effectuer une recherche
+  const handleSearch = useCallback(async (query: string, filters: SearchFilters) => {
+    setSearchQuery(query);
+    setSearchFilters(filters);
+    setIsSearching(true);
+    setCurrentPage(1);
+    setLoading(true);
+
+    try {
+      const response = await DataRequests.searchPosts(query, filters);
+      setPosts(response.posts);
+      setHasMore(false);
+    } catch (error) {
+      console.error('Erreur lors de la recherche:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Fonction pour définir une requête de recherche initiale
+  const setInitialQuery = useCallback((query: string) => {
+    // Effacer d'abord le contenu précédent
+    setSearchQuery('');
+    setInitialSearchQuery('');
+    
+    // Puis définir la nouvelle requête et lancer la recherche
+    setTimeout(() => {
+      setInitialSearchQuery(query);
+      handleSearch(query, searchFilters);
+    }, 0);
+  }, [handleSearch, searchFilters]);
+
   // Fonction pour rafraîchir les posts
   const handleRefresh = async () => {
     if (isRefreshing) return;
@@ -76,6 +117,7 @@ const Home = () => {
     setCurrentPage(1);
     setPosts([]);
     setHasMore(true);
+    setIsSearching(false);
   };
 
   useEffect(() => {
@@ -143,8 +185,10 @@ const Home = () => {
 
   // Charger les posts initiaux
   useEffect(() => {
-    fetchPosts(currentPage);
-  }, [currentPage, fetchPosts]);
+    if (!isSearching) {
+      fetchPosts(currentPage);
+    }
+  }, [currentPage, fetchPosts, isSearching]);
 
 
   // Ajouter cette fonction pour gérer l'édition d'un tweet
@@ -163,7 +207,18 @@ const Home = () => {
       </div>
       <main className="flex-1 border-l border-r md:border-gray-700 md:ml-72 md:max-w-[600px]">
         <header className="sticky top-0 z-10 border-b border-gray-700 backdrop-blur">
-          <h1 className="text-xl font-bold text-white p-4">Accueil</h1>
+          <div className='flex items-start justify-between'>
+            <h1 className="text-xl font-bold text-white p-4">Accueil</h1>
+            <div className="p-4">
+              <SearchBar 
+                onSearch={handleSearch} 
+                placeholder="Rechercher des tweets..." 
+                className="w-full md:w-64"
+                initialQuery={initialSearchQuery}
+              />
+            </div>
+          </div>
+          
           <HomeTab 
             currentTab={currentTab}
             onTabChange={handleTabChange}
@@ -183,6 +238,39 @@ const Home = () => {
           </div>
         </div>
 
+        {isSearching && (
+          <div className="px-4 py-2 border-b border-gray-700">
+            <div className="flex items-center justify-between">
+              <div className="text-white">
+                Résultats pour "{searchQuery}"
+                {searchFilters.dateRange !== 'all' && (
+                  <span className="text-gray-400 ml-2">
+                    • {searchFilters.dateRange === 'today' ? 'Aujourd\'hui' : 
+                       searchFilters.dateRange === 'week' ? 'Cette semaine' : 
+                       searchFilters.dateRange === 'month' ? 'Ce mois' : 'Cette année'}
+                  </span>
+                )}
+                {searchFilters.contentType !== 'all' && (
+                  <span className="text-gray-400 ml-2">
+                    • {searchFilters.contentType === 'text' ? 'Texte uniquement' : 
+                       searchFilters.contentType === 'media' ? 'Médias uniquement' : 'Vidéos uniquement'}
+                  </span>
+                )}
+              </div>
+              <button 
+                onClick={() => {
+                  setIsSearching(false);
+                  setSearchQuery('');
+                  fetchPosts(1);
+                }}
+                className="text-blue-400 hover:text-blue-300"
+              >
+                Effacer la recherche
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="divide-y divide-gray-700">
           {posts.map((post, index) => (
             <div
@@ -193,6 +281,7 @@ const Home = () => {
                 post={post} 
                 onDelete={handleDeleteTweet}
                 onEdit={handleEditTweet}
+                onHashtagClick={setInitialQuery}
               />
             </div>
           ))}
@@ -214,6 +303,12 @@ const Home = () => {
         {!loading && posts.length === 0 && currentTab === 'following' && (
           <div className="p-4 text-center text-gray-500">
             Aucun tweet des personnes que vous suivez
+          </div>
+        )}
+
+        {!loading && posts.length === 0 && isSearching && (
+          <div className="p-4 text-center text-gray-500">
+            Aucun résultat trouvé pour votre recherche
           </div>
         )}
       </main>

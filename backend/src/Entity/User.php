@@ -64,6 +64,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $siteWeb = null;
 
+    #[ORM\Column(nullable: true)]
+    private ?bool $lecture = null;
+
+    #[ORM\OneToOne(cascade: ['persist', 'remove'])]
+    private ?Post $pin = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -276,6 +282,30 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setSiteWeb(?string $siteWeb): static
     {
         $this->siteWeb = $siteWeb;
+
+        return $this;
+    }
+
+    public function isLecture(): ?bool
+    {
+        return $this->lecture;
+    }
+
+    public function setLecture(?bool $lecture): static
+    {
+        $this->lecture = $lecture;
+
+        return $this;
+    }
+
+    public function getPin(): ?Post
+    {
+        return $this->pin;
+    }
+
+    public function setPin(?Post $pin): static
+    {
+        $this->pin = $pin;
 
         return $this;
     }

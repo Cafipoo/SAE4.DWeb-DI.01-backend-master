@@ -81,6 +81,8 @@ class UserController extends AbstractController
         ]);
     }
 
+    
+
     #[Route('/user/{id}', name: 'user.show', methods: ['GET'])]
     public function show(Request $request, UserRepository $userRepository, PostRepository $postRepository, int $id): JsonResponse
     {
@@ -242,28 +244,13 @@ class UserController extends AbstractController
         }
     }
 
-    #[Route('/update/reloading/{id}', name: 'user.reloading', methods: ['POST'])]
-    public function reloading(
+    #[Route('/update/settings/{id}', name: 'user.settings', methods: ['POST'])]
+    public function settings(
         Request $request, 
         UserRepository $userRepository, 
         EntityManagerInterface $entityManager,
         int $id
     ): JsonResponse {
-        // Récupérer le token du header Authorization
-        $authHeader = $request->headers->get('Authorization');
-        if (!$authHeader) {
-            return $this->json(['error' => 'Token manquant'], Response::HTTP_UNAUTHORIZED);
-        }
-
-        // Extraire le token (retirer "Bearer " du début)
-        $token = str_replace('Bearer ', '', $authHeader);
-        
-        // Trouver l'utilisateur par le token
-        $authenticatedUser = $userRepository->findOneBy(['apiToken' => $token]);
-        if (!$authenticatedUser) {
-            return $this->json(['error' => 'Token invalide'], Response::HTTP_UNAUTHORIZED);
-        }
-
         // Récupérer l'utilisateur à modifier
         $user = $userRepository->find($id);
         if (!$user) {
@@ -280,16 +267,20 @@ class UserController extends AbstractController
             if (!isset($data['reloading'])) {
                 return $this->json(['error' => 'Champs requis manquants'], Response::HTTP_BAD_REQUEST);
             }
+            if (!isset($data['lecture'])) {
+                return $this->json(['error' => 'Champs requis manquants'], Response::HTTP_BAD_REQUEST);
+            }
 
             $user->setReloading($data['reloading']);
-            
+            $user->setLecture($data['lecture']);
             $entityManager->persist($user);
             $entityManager->flush();
 
             return $this->json([
                 'message' => 'Utilisateur mis à jour avec succès',
                 'user' => [
-                    'reloading' => $user->getReloading()
+                    'reloading' => $user->getReloading(),
+                    'lecture' => $user->isLecture()
                 ]
             ]);
 
@@ -300,8 +291,6 @@ class UserController extends AbstractController
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
-
-
 
     #[Route('/user/{id}/posts', name: 'user.posts', methods: ['GET'])]
     public function getUserPosts(Request $request, UserRepository $userRepository, PostRepository $postRepository, int $id): JsonResponse
@@ -331,104 +320,24 @@ class UserController extends AbstractController
             ];
         }, $posts);
 
+        // Récupérer le post épinglé par l'utilisateur
+        $pinnedPost = $user->getPin();
+        $pinnedPostData = null;
+        
+        if ($pinnedPost) {
+            $pinnedPostData = [
+                'id' => $pinnedPost->getId(),
+                'content' => $pinnedPost->getContent(),
+                'media' => $pinnedPost->getMedia() ? json_decode($pinnedPost->getMedia()) : [],
+                'created_at' => $pinnedPost->getCreatedAt()->format('Y-m-d H:i:s')
+            ];
+        }
+
         return $this->json([
-            'posts' => $postsData
+            'posts' => $postsData,
+            'pinned_post' => $pinnedPostData
         ]);
     }
-
-    // #[Route('/profile/{username}/cover', name: 'user.cover.upload', methods: ['POST'])]
-    // public function uploadCover(
-    //     Request $request,
-    //     UserRepository $userRepository,
-    //     EntityManagerInterface $entityManager,
-    //     string $username
-    // ): JsonResponse {
-    //     try {
-    //         // Trouver l'utilisateur dont on veut modifier la couverture
-    //         $user = $userRepository->findOneBy(['username' => $username]);
-    //         if (!$user) {
-    //             return new JsonResponse(['error' => 'Utilisateur non trouvé'], Response::HTTP_NOT_FOUND);
-    //         }
-
-    //         // Vérifier si l'utilisateur authentifié est admin ou le même que celui qu'il veut modifier
-    //         if ($authenticatedUser->getId() !== $user->getId() && !in_array('ROLE_ADMIN', $authenticatedUser->getRoles())) {
-    //             return new JsonResponse(['error' => 'Vous n\'avez pas les droits pour modifier cet utilisateur'], Response::HTTP_FORBIDDEN);
-    //         }
-
-    //         // Vérifier si une image a été envoyée
-    //         if (!$request->files->has('cover')) {
-    //             // Débogage des fichiers reçus
-    //             $filesInfo = [];
-    //             foreach ($request->files as $key => $file) {
-    //                 $filesInfo[$key] = 'File present';
-    //             }
-                
-    //             // Débogage des données de la requête
-    //             $requestData = [
-    //                 'files' => $filesInfo,
-    //                 'content_type' => $request->headers->get('Content-Type'),
-    //                 'method' => $request->getMethod(),
-    //                 'request_format' => $request->getRequestFormat(),
-    //             ];
-                
-    //             return new JsonResponse([
-    //                 'error' => 'Aucune image n\'a été envoyée',
-    //                 'debug' => $requestData
-    //             ], Response::HTTP_BAD_REQUEST);
-    //         }
-
-    //         $coverFile = $request->files->get('cover');
-
-    //         // Vérifier le type MIME
-    //         $mimeType = $coverFile->getMimeType();
-    //         if (!in_array($mimeType, ['image/jpeg', 'image/png'])) {
-    //             return new JsonResponse(['error' => 'Format d\'image non supporté. Utilisez JPEG ou PNG'], Response::HTTP_BAD_REQUEST);
-    //         }
-
-    //         // Vérifier la taille de l'image
-    //         if ($coverFile->getSize() > 5 * 1024 * 1024) { // 5MB max
-    //             return new JsonResponse(['error' => 'L\'image est trop grande. Taille maximum: 5MB'], Response::HTTP_BAD_REQUEST);
-    //         }
-
-    //         // Générer un nom de fichier unique
-    //         $fileName = $username . '_cover_' . uniqid() . '.' . $coverFile->guessExtension();
-            
-    //         // Définir le répertoire de destination
-    //         $uploadsDir = $this->getParameter('kernel.project_dir') . '/public/uploads/covers';
-            
-    //         try {
-    //             $coverFile->move($uploadsDir, $fileName);
-    //         } catch (\Exception $e) {
-    //             // En cas d'échec, essayons d'obtenir plus d'informations
-    //             throw new \Exception('Erreur lors du déplacement du fichier: ' . $e->getMessage() . 
-    //                 ', Répertoire: ' . $uploadsDir . 
-    //                 ', Permissions: ' . substr(sprintf('%o', fileperms($uploadsDir)), -4));
-    //         }
-            
-    //         $publicPath = '/uploads/covers/' . $fileName;
-
-    //         $user->setCover($publicPath);
-
-    //         $entityManager->persist($user);
-    //         $entityManager->flush();
-            
-    //         $fileContent = file_get_contents($uploadsDir . '/' . $fileName);
-    //         $base64Content = base64_encode($fileContent);
-
-    //         return new JsonResponse([
-    //             'message' => 'Image de couverture mise à jour avec succès',
-    //             'cover' => $base64Content,
-    //             'mimeType' => $mimeType,
-    //             'coverUrl' => $publicPath
-    //         ]);
-
-    //     } catch (\Exception $e) {
-    //         return new JsonResponse([
-    //             'error' => 'Une erreur est survenue lors du téléchargement de l\'image: ' . $e->getMessage(),
-    //             'trace' => $e->getTraceAsString()
-    //         ], Response::HTTP_INTERNAL_SERVER_ERROR);
-    //     }
-    // }
 
     #[Route('/profile/{username}/update', name: 'user.profile.update', methods: ['POST'])]
     public function updateProfile(Request $request, UserRepository $userRepository, EntityManagerInterface $entityManager, string $username): JsonResponse {
@@ -558,5 +467,74 @@ class UserController extends AbstractController
         }, $bannedUsers);
 
         return $this->json($bannedUsersData);
+    }
+
+    #[Route('/pin/post/{id}', name: 'pin.post', methods: ['POST'])]
+    public function pinPost(Request $request, UserRepository $userRepository, PostRepository $postRepository, int $id): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+        $userId = $data['userId'] ?? null;
+
+        if (!$userId) {
+            return $this->json(['error' => 'Utilisateur non spécifié'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $user = $userRepository->find($userId);
+        if (!$user) {
+            return $this->json(['error' => 'Utilisateur non trouvé'], Response::HTTP_NOT_FOUND);
+        }
+
+        $post = $postRepository->find($id);
+        if (!$post) {
+            return $this->json(['error' => 'Post non trouvé'], Response::HTTP_NOT_FOUND);
+        }
+
+        // Vérifier si l'utilisateur est le propriétaire du post
+        if ($post->getUser()->getId() !== $user->getId()) {
+            return $this->json(['error' => 'Vous ne pouvez épingler que vos propres posts'], Response::HTTP_FORBIDDEN);
+        }
+
+        // Vérifier si le post est déjà épinglé
+        $currentPinnedPost = $user->getPin();
+        
+        if ($currentPinnedPost && $currentPinnedPost->getId() === $post->getId()) {
+            // Si le post est déjà épinglé, on le désépingle
+            $user->setPin(null);
+            $this->entityManager->flush();
+            return $this->json(['success' => true, 'action' => 'unpinned']);
+        } else {
+            // Sinon, on épinglé le nouveau post
+            $user->setPin($post);
+            $this->entityManager->flush();
+            return $this->json(['success' => true, 'action' => 'pinned']);
+        }
+    }
+
+    #[Route('/users/all', name: 'users.all', methods: ['GET'])]
+    public function getAllUsers(UserRepository $userRepository): JsonResponse
+    {
+        $users = $userRepository->findAll();
+        $usersData = [];
+
+        foreach ($users as $user) {
+            $usersData[] = [
+                'id' => $user->getId(),
+                'username' => $user->getUsername(),
+                'name' => $user->getName(),
+                'email' => $user->getEmail(),
+                'joined_date' => $user->getJoinedDate()->format('Y-m-d H:i:s'),
+                'avatar' => $user->getAvatar(),
+                'cover' => $user->getCover(),
+                'bio' => $user->getBio(),
+                'location' => $user->getLocation(),
+                'siteWeb' => $user->getSiteWeb(),
+                'banned' => $user->isBanned(),
+                'is_banned_by_current_user' => false, // Cette valeur devrait être calculée en fonction de l'utilisateur connecté
+                'followers_count' => 0, // À implémenter si nécessaire
+                'following_count' => 0  // À implémenter si nécessaire
+            ];
+        }
+
+        return $this->json(['users' => $usersData]);
     }
 }

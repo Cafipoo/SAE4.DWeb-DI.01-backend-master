@@ -33,12 +33,13 @@ export interface Post {
     created_at: string;
     media: string[];
     censored: boolean;
-    author?: {
+    author: {
         id: number;
         name: string;
         username: string;
         avatar: string;
         banned: boolean;
+        lecture: boolean;
     };
     likes_count: number;
     liked_by: number[];
@@ -51,6 +52,7 @@ export interface Post {
 export interface PostsResponse {
     posts: Post[];
     hasMore: boolean;
+    pinned_post?: Post | null;
 }
 
 export interface PostInteraction {
@@ -83,6 +85,12 @@ export interface AdminPostsResponse {
     total_posts: number;
     current_page: number;
     max_pages: number;
+}
+
+export interface SearchFilters {
+    dateRange: string;
+    contentType: string;
+    userId?: number;
 }
 
 export const DataRequests = {
@@ -146,7 +154,8 @@ export const DataRequests = {
                 const data = JSON.parse(jsonText);
                 return {
                     posts: data.posts,
-                    hasMore: data.posts.length > 0 && data.next_page !== null
+                    hasMore: data.posts.length > 0 && data.next_page !== null,
+                    pinned_post: data.pinned_post || null
                 };
             } catch (e) {
                 throw new Error('Réponse invalide du serveur: ' + jsonText);
@@ -448,15 +457,15 @@ export const DataRequests = {
             throw error;
         }
     },
-    async updateSetting(userId: number, reloading: string): Promise<User> {
+    async updateSetting(userId: number, reloading: string, lecture: boolean): Promise<User> {
         try {
-            const response = await AuthService.authenticatedFetch(`/update/reloading/${userId}`, {
+            const response = await AuthService.authenticatedFetch(`/update/settings/${userId}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json'
                 },
-                body: JSON.stringify({ reloading })
+                body: JSON.stringify({ reloading, lecture })
             });
 
             const responseText = await response.text();
@@ -742,6 +751,66 @@ export const DataRequests = {
             const errorData = await response.json();
             throw new Error(errorData.error || 'Erreur lors de la mise à jour du post');
         }
+        return response.json();
+    },
+
+    async pinPost(postId: number): Promise<{ success: boolean }> {
+        const userId = AuthService.getUserId();
+        if (!userId) {
+            throw new Error('Utilisateur non connecté');
+        }
+
+        const response = await AuthService.authenticatedFetch(`/pin/post/${postId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ userId }),
+        });
+
+        if (!response.ok) {
+            throw new Error('Erreur lors de l\'épinglage du post');
+        }
+
+        const data = await response.json();
+        return { success: data.success };
+    },
+
+    async getAllUsers(): Promise<User[]> {
+        const response = await AuthService.authenticatedFetch('/users/all', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error('Erreur lors de la récupération des utilisateurs');
+        }
+
+        const data = await response.json();
+        return data.users;
+    },
+
+    searchPosts: async (query: string, filters: SearchFilters): Promise<{ posts: Post[] }> => {
+        const params = new URLSearchParams({
+            query,
+            dateRange: filters.dateRange,
+            contentType: filters.contentType,
+            ...(filters.userId && { userId: filters.userId.toString() })
+        });
+
+        const response = await AuthService.authenticatedFetch(`/posts/search?${params}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Erreur lors de la recherche des posts');
+        }
+
         return response.json();
     },
 }; 

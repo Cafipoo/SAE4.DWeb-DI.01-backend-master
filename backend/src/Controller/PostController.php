@@ -84,7 +84,8 @@ class PostController extends AbstractController
                     'username' => $user->getUsername(),
                     'avatar' => $user->getAvatar(),
                     'email' => $user->getEmail(),
-                    'banned' => $user->isBanned()
+                    'banned' => $user->isBanned(),
+                    'lecture' => $user->isLecture()
                 ],
                 'likes_count' => count($likes),
                 'liked_by' => $likedByIds,
@@ -204,7 +205,8 @@ class PostController extends AbstractController
                     'username' => $user->getUsername(),
                     'avatar' => $user->getAvatar(),
                     'email' => $user->getEmail(),
-                    'banned' => $user->isBanned()
+                    'banned' => $user->isBanned(),
+                    'lecture' => $user->isLecture()
                 ],
                 'likes_count' => count($likes),
                 'liked_by' => $likedByIds,
@@ -321,7 +323,8 @@ class PostController extends AbstractController
                     'username' => $user->getUsername(),
                     'avatar' => $user->getAvatar(),
                     'email' => $user->getEmail(),
-                    'banned' => $user->isBanned()
+                    'banned' => $user->isBanned(),
+                    'lecture' => $user->isLecture()
                 ]
             ], Response::HTTP_CREATED);
         } catch (\Exception $e) {
@@ -501,7 +504,8 @@ class PostController extends AbstractController
                     'username' => $post->getUser()->getUsername(),
                     'avatar' => $post->getUser()->getAvatar(),
                     'email' => $post->getUser()->getEmail(),
-                    'banned' => $post->getUser()->isBanned()
+                    'banned' => $post->getUser()->isBanned(),
+                    'lecture' => $post->getUser()->isLecture()
                 ]
             ], Response::HTTP_OK);
         } catch (\Exception $e) {
@@ -539,7 +543,8 @@ class PostController extends AbstractController
                     'username' => $user->getUsername(),
                     'avatar' => $user->getAvatar(),
                     'email' => $user->getEmail(),
-                    'banned' => $user->isBanned()
+                    'banned' => $user->isBanned(),
+                    'lecture' => $user->isLecture()
                 ]
             ];
         }
@@ -592,7 +597,8 @@ class PostController extends AbstractController
                     'username' => $post->getUser()->getUsername(),
                     'avatar' => $post->getUser()->getAvatar(),
                     'email' => $post->getUser()->getEmail(),
-                    'banned' => $post->getUser()->isBanned()
+                    'banned' => $post->getUser()->isBanned(),
+                    'lecture' => $post->getUser()->isLecture()
                 ]
             ]);
         } catch (\Exception $e) {
@@ -601,6 +607,90 @@ class PostController extends AbstractController
                 'message' => $e->getMessage()
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
+    }
+
+    #[Route('/posts/search', name: 'posts.search', methods: ['GET'])]
+    public function search(Request $request, PostRepository $postRepository): JsonResponse
+    {
+        $query = $request->query->get('query', '');
+        $dateRange = $request->query->get('dateRange', 'all');
+        $contentType = $request->query->get('contentType', 'all');
+        $userId = $request->query->get('userId', null);
+
+        $qb = $postRepository->createQueryBuilder('p')
+            ->leftJoin('p.user', 'u')
+            ->orderBy('p.created_at', 'DESC');
+
+        // Filtre par texte
+        if (!empty($query)) {
+            $qb->andWhere('p.content LIKE :query')
+               ->setParameter('query', '%' . $query . '%');
+        }
+
+        // Filtre par date
+        if ($dateRange !== 'all') {
+            $now = new \DateTime();
+            switch ($dateRange) {
+                case 'today':
+                    $qb->andWhere('p.created_at >= :startDate')
+                       ->setParameter('startDate', $now->format('Y-m-d 00:00:00'));
+                    break;
+                case 'week':
+                    $qb->andWhere('p.created_at >= :startDate')
+                       ->setParameter('startDate', $now->modify('-1 week')->format('Y-m-d H:i:s'));
+                    break;
+                case 'month':
+                    $qb->andWhere('p.created_at >= :startDate')
+                       ->setParameter('startDate', $now->modify('-1 month')->format('Y-m-d H:i:s'));
+                    break;
+                case 'year':
+                    $qb->andWhere('p.created_at >= :startDate')
+                       ->setParameter('startDate', $now->modify('-1 year')->format('Y-m-d H:i:s'));
+                    break;
+            }
+        }
+
+        // Filtre par type de contenu
+        if ($contentType !== 'all') {
+            switch ($contentType) {
+                case 'text':
+                    $qb->andWhere('p.media IS NULL OR p.media = \'[]\'');
+                    break;
+                case 'media':
+                    $qb->andWhere('p.media IS NOT NULL AND p.media != \'[]\'');
+                    break;
+            }
+        }
+
+        // Filtre par utilisateur
+        if ($userId) {
+            $qb->andWhere('u.id = :userId')
+               ->setParameter('userId', $userId);
+        }
+
+        $posts = $qb->getQuery()->getResult();
+
+        $postsData = [];
+        foreach ($posts as $post) {
+            $user = $post->getUser();
+            $postsData[] = [
+                'id' => $post->getId(),
+                'content' => $post->getContent(),
+                'created_at' => $post->getCreatedAt()->format('Y-m-d H:i:s'),
+                'media' => $post->getMedia() ? json_decode($post->getMedia()) : [],
+                'author' => [
+                    'id' => $user->getId(),
+                    'name' => $user->getName(),
+                    'username' => $user->getUsername(),
+                    'avatar' => $user->getAvatar(),
+                    'email' => $user->getEmail(),
+                    'banned' => $user->isBanned(),
+                    'lecture' => $user->isLecture()
+                ]
+            ];
+        }
+
+        return $this->json(['posts' => $postsData]);
     }
 
     // #[Route('/posts', name: 'posts_create', methods: ['POST'])]

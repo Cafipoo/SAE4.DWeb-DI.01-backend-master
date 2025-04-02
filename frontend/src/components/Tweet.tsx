@@ -13,13 +13,25 @@ interface TweetProps {
     replies?: number;
     isLiked?: boolean;
     isFollowed?: boolean;
+    isPinned?: boolean;
+    author?: {
+      id: number;
+      name: string;
+      username: string;
+      avatar: string;
+      banned: boolean;
+      lecture?: boolean;
+    };
   };
   onDelete?: (postId: number) => void;
   onFollowUpdate?: (userId: number, isFollowed: boolean) => void;
   onEdit?: (editedPost: Post) => void;
+  onPin?: (postId: number) => void;
+  showPinButton?: boolean;
+  onHashtagClick?: (hashtag: string) => void;
 }
 
-const Tweet = ({ post, onDelete, onFollowUpdate, onEdit }: TweetProps) => {
+const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, showPinButton = false, onHashtagClick }: TweetProps) => {
   let name = localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")!) : null;
   const [isLiked, setIsLiked] = useState(false);
   const [isFollowed, setIsFollowed] = useState(post.isFollowed || false);
@@ -62,7 +74,7 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit }: TweetProps) => {
       const updatedComments = [...(Array.isArray(currentPost.comments) ? currentPost.comments : 
                                  typeof currentPost.comments === 'object' && currentPost.comments !== null ? 
                                  Object.values(currentPost.comments) : [])];
-      const existingCommentIndex = updatedComments.findIndex(c => c.user.id === name.id);
+      const existingCommentIndex = updatedComments.findIndex((c: any) => c.user.id === name.id);
       
       if (existingCommentIndex !== -1) {
         updatedComments[existingCommentIndex] = response;
@@ -70,7 +82,7 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit }: TweetProps) => {
         updatedComments.push(response);
       }
       
-      setCurrentPost({ ...currentPost, comments: updatedComments });
+      setCurrentPost({ ...currentPost, comments: updatedComments as PostInteraction[] });
       setNewComment('');
       setIsCommenting(false);
     } catch (error) {
@@ -120,6 +132,18 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit }: TweetProps) => {
     setIsMediaViewerOpen(true);
   };
 
+  const handlePin = async () => {
+    try {
+      setError(null);
+      if (onPin) {
+        onPin(post.id);
+      }
+    } catch (error) {
+      console.error('Erreur lors de l\'épinglage:', error);
+      setError(error instanceof Error ? error.message : 'Une erreur est survenue lors de l\'épinglage');
+    }
+  };
+
   // Valeurs par défaut pour les données manquantes
   const defaultAuthor = {
     name: "Utilisateur",
@@ -131,6 +155,36 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit }: TweetProps) => {
   const author = currentPost.author || defaultAuthor;
   const reposts = currentPost.reposts || 0;
   const replies = currentPost.replies || 0;
+
+  const processText = (text: string) => {
+    const parts = text.split(/(\s+)/);
+    return parts.map((part, index) => {
+      if (part.startsWith('#')) {
+        return (
+          <span
+            key={index}
+            className="text-blue-500 font-bold hover:underline cursor-pointer"
+            onClick={() => onHashtagClick && onHashtagClick(part)}
+          >
+            {part}
+          </span>
+        );
+      }
+      if (part.startsWith('@')) {
+        const username = part.slice(1);
+        return (
+          <Link
+            key={index}
+            to={`/profile/${username}`}
+            className="text-blue-500 font-bold hover:underline"
+          >
+            {part}
+          </Link>
+        );
+      }
+      return part;
+    });
+  };
 
   return (
     <>
@@ -145,7 +199,7 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit }: TweetProps) => {
         </div>
       ) : (
         <>
-          <article className="border-b border-gray-700 p-4 hover:bg-gray-900/50 transition-colors cursor-pointer">
+          <article className={`border-b border-gray-700 p-4 hover:bg-gray-900/50 transition-colors cursor-pointer ${post.isPinned ? 'bg-gray-900/30' : ''}`}>
             <div className="flex gap-4">
               <img
                 src={`http://localhost:8080/uploads/avatar/${author.avatar}`}
@@ -168,6 +222,15 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit }: TweetProps) => {
                   <time className="text-gray-500">{new Date(currentPost.created_at).toLocaleDateString()}</time>
                   {name.name === author.name ? (
                     <div className="flex gap-2">
+                      {showPinButton && (
+                        <Button 
+                          variant="default" 
+                          size="sm" 
+                          onClick={handlePin}
+                        >
+                          <Icon name={post.isPinned ? "pinned" : "pin"} />
+                        </Button>
+                      )}
                       <Button 
                         variant="default" 
                         size="sm" 
@@ -188,7 +251,9 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit }: TweetProps) => {
                   )}
                 </div>
                 <div>
-                  <p className="text-white mb-3 break-all break-words whitespace-pre-wrap overflow-hidden max-w-full">{currentPost.content}</p>
+                  <p className="text-white mb-3 break-all break-words whitespace-pre-wrap overflow-hidden max-w-full">
+                    {processText(currentPost.content)}
+                  </p>
                 </div>
                 {currentPost.media && currentPost.media.length > 0 && (
                   <div className={`mb-3 w-48 rounded-2xl overflow-hidden ${
@@ -240,34 +305,35 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit }: TweetProps) => {
                     ))}
                   </div>
                 )}
-                <div className=" flex justify-between text-gray-500 max-w-md">
-                  <Button 
-                    className="bg-transparent flex items-center gap-2 hover:text-blue-500 transition-colors"
-                    onClick={() => setIsCommenting(!isCommenting)}
-                  >
-                    <Icon name="reply" className="w-5 h-5" />
-                    <span>{replies}</span>
-                  </Button>
-                  <Button className="bg-transparent  flex items-center gap-2 hover:text-green-500 transition-colors">
-                    <Icon name="repost" className="w-5 h-5" />
-                    <span>{reposts}</span>
-                  </Button>
-                  {isLiked ? (
-                    <Button className="bg-transparent border-none flex items-center gap-2 fill-pink-500 text-pink-500 transition-colors" onClick={() => handleLike()}>
-                      <Icon name="like" className="w-5 h-5" />
-                      <span>{likesCount}</span>
-                  </Button>
-                  ) : (
-                    <Button className="bg-transparent border-none flex items-center gap-2 hover:text-pink-400 transition-colors" onClick={() => handleLike()}>
-                      <Icon name="like" className="w-5 h-5" />
-                      <span>{likesCount}</span>
+                {author.lecture === false || author.lecture === null && (
+                  <div className="flex justify-between text-gray-500 max-w-md">
+                    <Button 
+                      className="bg-transparent flex items-center gap-2 hover:text-blue-500 transition-colors"
+                      onClick={() => setIsCommenting(!isCommenting)}
+                    >
+                      <Icon name="reply" className="w-5 h-5" />
+                      <span>{replies}</span>
                     </Button>
-                  )}
-                  <Button className="bg-transparent border-none flex items-center gap-2 hover:text-blue-500 transition-colors">
-                    <Icon name="share" className="w-5 h-5" />
-                  </Button>
-                </div>
-
+                    <Button className="bg-transparent flex items-center gap-2 hover:text-green-500 transition-colors">
+                      <Icon name="repost" className="w-5 h-5" />
+                      <span>{reposts}</span>
+                    </Button>
+                    {isLiked ? (
+                      <Button className="bg-transparent border-none flex items-center gap-2 fill-pink-500 text-pink-500 transition-colors" onClick={() => handleLike()}>
+                        <Icon name="like" className="w-5 h-5" />
+                        <span>{likesCount}</span>
+                      </Button>
+                    ) : (
+                      <Button className="bg-transparent border-none flex items-center gap-2 hover:text-pink-400 transition-colors" onClick={() => handleLike()}>
+                        <Icon name="like" className="w-5 h-5" />
+                        <span>{likesCount}</span>
+                      </Button>
+                    )}
+                    <Button className="bg-transparent border-none flex items-center gap-2 hover:text-blue-500 transition-colors">
+                      <Icon name="share" className="w-5 h-5" />
+                    </Button>
+                  </div>
+                )}
                 {/* Commentaires */}
                 <div className="mt-4 space-y-4">
                   {Array.isArray(currentPost.comments) && currentPost.comments.map((comment) => (

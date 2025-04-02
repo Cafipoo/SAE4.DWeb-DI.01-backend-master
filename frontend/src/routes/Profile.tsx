@@ -20,6 +20,7 @@ const Profile = () => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [followedUsers, setFollowedUsers] = useState<number[]>([]);
   const [activeTab, setActiveTab] = useState<'posts' | 'banned'>('posts');
+  const [pinnedPost, setPinnedPost] = useState<Post | null>(null);
 
   // Fonction pour ajouter un nouveau tweet
   const addNewTweet = useCallback((newTweet: Post) => {
@@ -67,6 +68,27 @@ const Profile = () => {
       )
     );
   }, []);
+
+  // Fonction pour gérer l'épinglage d'un tweet
+  const handlePinPost = useCallback(async (postId: number) => {
+    try {
+      const response = await DataRequests.pinPost(postId);
+      if (response.success) {
+        // Si le post est déjà épinglé, on le désépingle
+        if (pinnedPost && pinnedPost.id === postId) {
+          setPinnedPost(null);
+        } else {
+          // Sinon, on épinglé le nouveau post
+          const post = posts.find(p => p.id === postId);
+          if (post) {
+            setPinnedPost(post);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Erreur lors de l\'épinglage:', error);
+    }
+  }, [posts, pinnedPost]);
 
   // Écouter l'événement de nouveau tweet
   useEffect(() => {
@@ -150,6 +172,11 @@ const Profile = () => {
         });
         
         setHasMore(response.hasMore);
+        
+        // Mettre à jour le post épinglé s'il existe
+        if (response.pinned_post) {
+          setPinnedPost(response.pinned_post);
+        }
       } catch (err) {
         console.error('Erreur lors du chargement des posts:', err);
       } finally {
@@ -233,6 +260,36 @@ const Profile = () => {
           <div className="space-y-4 py-4">
             {activeTab === 'posts' ? (
               <>
+                {/* Tweet épinglé */}
+                {pinnedPost && (
+                  <div className="mb-4">
+                    <div className="text-gray-500 text-sm mb-2">Tweet épinglé</div>
+                    <Tweet
+                      post={{
+                        ...pinnedPost,
+                        isPinned: true,
+                        reposts: 0,
+                        replies: 0,
+                        isFollowed: followedUsers.includes(user.id),
+                        author: {
+                          id: user.id,
+                          name: user.name,
+                          username: user.username,
+                          avatar: user.avatar || '',
+                          banned: user.banned || false,
+                          lecture: false
+                        }
+                      }}
+                      onDelete={handleDeleteTweet}
+                      onFollowUpdate={handleFollowUpdate}
+                      onEdit={handleEditTweet}
+                      onPin={handlePinPost}
+                      showPinButton={true}
+                    />
+                  </div>
+                )}
+
+                {/* Liste des tweets */}
                 {posts.length > 0 ? (
                   posts.map((post, index) => (
                     <div
@@ -241,26 +298,25 @@ const Profile = () => {
                     >
                       <Tweet
                         post={{
-                          id: post.id,
-                          content: post.content,
-                          created_at: post.created_at,
-                          media: post.media || [],
-                          liked_by: post.liked_by || [],
+                          ...post,
+                          reposts: 0,
+                          replies: 0,
+                          isFollowed: followedUsers.includes(user.id),
+                          isPinned: post.id === pinnedPost?.id,
                           author: {
                             id: user.id,
                             name: user.name,
                             username: user.username,
                             avatar: user.avatar || '',
-                            banned: user.banned
-                          },
-                          likes_count: post.likes_count,
-                          reposts: 0,
-                          replies: 0,
-                          isFollowed: followedUsers.includes(user.id)
+                            banned: user.banned || false,
+                            lecture: false
+                          }
                         }}
                         onDelete={handleDeleteTweet}
                         onFollowUpdate={handleFollowUpdate}
                         onEdit={handleEditTweet}
+                        onPin={handlePinPost}
+                        showPinButton={true}
                       />
                     </div>
                   ))
