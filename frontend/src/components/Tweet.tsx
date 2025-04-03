@@ -211,7 +211,7 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, showPinButton = 
           <p className="text-white">Le propriétaire de ce tweet a été banni</p>
         </div>
       ) : 
-      currentPost.censored ? (
+      currentPost.censored && !currentPost.retweet ? (
         <div className="border-b border-gray-700 p-4 hover:bg-gray-900/50 transition-colors cursor-pointer">
           <p className="text-white">Ce tweet a été censuré</p>
         </div>
@@ -299,7 +299,35 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, showPinButton = 
                     </p>
                     {currentPost.original_post?.media && currentPost.original_post.media.length > 0 && (
                       <div className="mb-3">
-                        {/* Afficher les médias du tweet original */}
+                        <div className="grid grid-cols-2 gap-2">
+                          {currentPost.original_post.media.map((mediaUrl, index) => {
+                            const isVideo = mediaUrl.match(/\.(mp4|webm|ogg)$/i);
+                            return (
+                              <div key={index} className="relative">
+                                {isVideo ? (
+                                  <video
+                                    src={`http://localhost:8080/uploads/posts/${mediaUrl}`}
+                                    className="w-full h-32 object-cover rounded-lg cursor-pointer"
+                                    onClick={() => {
+                                      setMediaViewerIndex(index);
+                                      setIsMediaViewerOpen(true);
+                                    }}
+                                  />
+                                ) : (
+                                  <img
+                                    src={`http://localhost:8080/uploads/posts/${mediaUrl}`}
+                                    alt={`Média ${index + 1}`}
+                                    className="w-full h-32 object-cover rounded-lg cursor-pointer"
+                                    onClick={() => {
+                                      setMediaViewerIndex(index);
+                                      setIsMediaViewerOpen(true);
+                                    }}
+                                  />
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -312,7 +340,35 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, showPinButton = 
                     </div>
                     {currentPost.media && currentPost.media.length > 0 && (
                       <div className="mb-3">
-                        {/* Afficher les médias du tweet */}
+                        <div className="grid grid-cols-2 gap-2">
+                          {currentPost.media.map((mediaUrl, index) => {
+                            const isVideo = mediaUrl.match(/\.(mp4|webm|ogg)$/i);
+                            return (
+                              <div key={index} className="relative">
+                                {isVideo ? (
+                                  <video
+                                    src={`http://localhost:8080/uploads/posts/${mediaUrl}`}
+                                    className="w-full h-48 object-cover rounded-lg cursor-pointer"
+                                    onClick={() => {
+                                      setMediaViewerIndex(index);
+                                      setIsMediaViewerOpen(true);
+                                    }}
+                                  />
+                                ) : (
+                                  <img
+                                    src={`http://localhost:8080/uploads/posts/${mediaUrl}`}
+                                    alt={`Média ${index + 1}`}
+                                    className="w-full h-48 object-cover rounded-lg cursor-pointer"
+                                    onClick={() => {
+                                      setMediaViewerIndex(index);
+                                      setIsMediaViewerOpen(true);
+                                    }}
+                                  />
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     )}
                   </>

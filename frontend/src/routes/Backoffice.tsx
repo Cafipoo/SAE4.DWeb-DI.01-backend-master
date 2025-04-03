@@ -101,6 +101,21 @@ const Backoffice = () => {
     }
   };
 
+  const handleDeletePost = async (postId: number) => {
+    try {
+      setError(null);
+      if (window.confirm('Êtes-vous sûr de vouloir supprimer ce post ?')) {
+        await DataRequests.deletePost(postId);
+        // Rafraîchir la liste des posts
+        const data = await DataRequests.getAdminPosts(currentPostPage);
+        setPosts(data.posts || []);
+      }
+    } catch (err: any) {
+      console.error('Erreur complète:', err);
+      setError(err.message || 'Une erreur est survenue lors de la suppression du post');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-black text-white p-8">
       <div className="max-w-6xl mx-auto">
@@ -262,16 +277,24 @@ const Backoffice = () => {
                           <td className="py-3 px-4">{post.created_at}</td>
                           <td className="py-3 px-4">{post.censored ? 'Oui' : 'Non'}</td>
                           <td className="py-3 px-4">
-                            <button
-                              onClick={() => handleToggleCensored(post)}
-                              className={`px-3 py-1 rounded ${
-                                post.censored 
-                                  ? 'bg-green-500 hover:bg-green-600' 
-                                  : 'bg-red-500 hover:bg-red-600'
-                              } text-white`}
-                            >
-                              {post.censored ? 'Décensurer' : 'Censurer'}
-                            </button>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleToggleCensored(post)}
+                                className={`px-3 py-1 rounded ${
+                                  post.censored 
+                                    ? 'bg-green-500 hover:bg-green-600' 
+                                    : 'bg-red-500 hover:bg-red-600'
+                                } text-white`}
+                              >
+                                {post.censored ? 'Décensurer' : 'Censurer'}
+                              </button>
+                              <button
+                                onClick={() => handleDeletePost(post.id)}
+                                className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+                              >
+                                Supprimer
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))

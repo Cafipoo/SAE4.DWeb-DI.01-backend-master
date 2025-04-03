@@ -41,6 +41,7 @@ class Post
     #[ORM\Column(nullable: true)]
     private ?bool $isDeleted = null;
 
+
     public function __construct()
     {
         $this->postInteractions = new ArrayCollection();
@@ -171,4 +172,5 @@ class Post
 
         return $this;
     }
+
 }

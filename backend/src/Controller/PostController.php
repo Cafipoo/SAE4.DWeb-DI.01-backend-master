@@ -498,7 +498,7 @@ class PostController extends AbstractController
         }
     }
 
-    #[Route('/posts/{id}', name: 'posts.update', methods: ['POST'])]
+    #[Route('/posts/{id}/edit', name: 'posts.update', methods: ['POST'])]
     public function update(int $id, Request $request, PostRepository $postRepository, UserRepository $userRepository): JsonResponse
     {
         try {
