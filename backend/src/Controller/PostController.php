@@ -89,9 +89,9 @@ class PostController extends AbstractController
                     $originalPostUser = $originalPost->getUser();
                     $originalPost = [
                         'id' => $originalPost->getId(),
-                        'content' => $originalPost->getContent(),
+                        'content' => $post->getRetweetContent() ?? $originalPost->getContent(),
                         'created_at' => $originalPost->getCreatedAt()->format('Y-m-d H:i:s'),
-                        'media' => $originalPost->getMedia() ? json_decode($originalPost->getMedia()) : [],
+                        'media' => $post->getRetweetMedia() ? json_decode($post->getRetweetMedia()) : ($originalPost->getMedia() ? json_decode($originalPost->getMedia()) : []),
                         'reposts' => $postRepository->count(['retweet' => $originalPost->getId()]),
                         'author' => [
                             'id' => $originalPostUser->getId(),
@@ -231,6 +231,28 @@ class PostController extends AbstractController
             // Compter le nombre de retweets
             $retweetCount = $postRepository->count(['retweet' => $post->getId()]);
             
+            // Si c'est un retweet, récupérer le post original
+            $originalPost = null;
+            if ($post->getRetweet()) {
+                $originalPost = $postRepository->find($post->getRetweet());
+                if ($originalPost) {
+                    $originalPostUser = $originalPost->getUser();
+                    $originalPost = [
+                        'id' => $originalPost->getId(),
+                        'content' => $post->getRetweetContent() ?? $originalPost->getContent(),
+                        'created_at' => $originalPost->getCreatedAt()->format('Y-m-d H:i:s'),
+                        'media' => $post->getRetweetMedia() ? json_decode($post->getRetweetMedia()) : ($originalPost->getMedia() ? json_decode($originalPost->getMedia()) : []),
+                        'reposts' => $postRepository->count(['retweet' => $originalPost->getId()]),
+                        'author' => [
+                            'id' => $originalPostUser->getId(),
+                            'name' => $originalPostUser->getName(),
+                            'username' => $originalPostUser->getUsername(),
+                            'avatar' => $originalPostUser->getAvatar()
+                        ]
+                    ];
+                }
+            }
+            
             $posts[] = [
                 'id' => $post->getId(),
                 'content' => $post->getContent(),
@@ -250,7 +272,9 @@ class PostController extends AbstractController
                 'isFollowed' => $isFollowed,
                 'comments' => $comments,
                 'replies' => count($comments),
-                'reposts' => $retweetCount
+                'reposts' => $retweetCount,
+                'retweet' => $post->getRetweet(),
+                'original_post' => $originalPost
             ];
         }
 
@@ -546,12 +570,18 @@ class PostController extends AbstractController
                     }
                 }
 
+                // Vérifier si le post a été retweeté
+                $hasRetweets = $postRepository->count(['retweet' => $post->getId()]) > 0;
+
                 // Supprimer les médias qui ne sont plus utilisés
                 foreach ($currentMedia as $mediaUrl) {
                     if (!in_array($mediaUrl, $newMediaUrls)) {
-                        $filePath = $uploadDir . '/' . $mediaUrl;
-                        if (file_exists($filePath)) {
-                            unlink($filePath);
+                        // Ne pas supprimer les médias si le post a été retweeté
+                        if (!$hasRetweets) {
+                            $filePath = $uploadDir . '/' . $mediaUrl;
+                            if (file_exists($filePath)) {
+                                unlink($filePath);
+                            }
                         }
                     }
                 }
@@ -845,6 +875,10 @@ class PostController extends AbstractController
             $retweet->setCreatedAt(new \DateTime());
             $retweet->setUser($user);
             $retweet->setRetweet($originalPost->getId());
+            
+            // Stocker le contenu et les médias du tweet original
+            $retweet->setRetweetContent($originalPost->getContent());
+            $retweet->setRetweetMedia($originalPost->getMedia());
 
             // Si le post original contient des médias, les copier
             if ($originalPost->getMedia()) {
@@ -865,6 +899,8 @@ class PostController extends AbstractController
                 'media' => $retweet->getMedia() ? json_decode($retweet->getMedia()) : [],
                 'retweet' => $originalPost->getId(),
                 'reposts' => $retweetCount,
+                'retweetContent' => $retweet->getRetweetContent(),
+                'retweetMedia' => $retweet->getRetweetMedia() ? json_decode($retweet->getRetweetMedia()) : [],
                 'author' => [
                     'id' => $user->getId(),
                     'name' => $user->getName(),

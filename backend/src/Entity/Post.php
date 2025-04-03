@@ -41,6 +41,12 @@ class Post
     #[ORM\Column(nullable: true)]
     private ?bool $isDeleted = null;
 
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $retweetContent = null;
+
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $retweetMedia = null;
+
 
     public function __construct()
     {
@@ -169,6 +175,30 @@ class Post
     public function setIsDeleted(?bool $isDeleted): static
     {
         $this->isDeleted = $isDeleted;
+
+        return $this;
+    }
+
+    public function getRetweetContent(): ?string
+    {
+        return $this->retweetContent;
+    }
+
+    public function setRetweetContent(?string $retweetContent): static
+    {
+        $this->retweetContent = $retweetContent;
+
+        return $this;
+    }
+
+    public function getRetweetMedia(): ?string
+    {
+        return $this->retweetMedia;
+    }
+
+    public function setRetweetMedia(?string $retweetMedia): static
+    {
+        $this->retweetMedia = $retweetMedia;
 
         return $this;
     }
