@@ -35,6 +35,12 @@ class Post
     #[ORM\Column(nullable: true)]
     private ?bool $censored = null;
 
+    #[ORM\Column(nullable: true)]
+    private ?int $retweet = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?bool $isDeleted = null;
+
     public function __construct()
     {
         $this->postInteractions = new ArrayCollection();
@@ -138,6 +144,30 @@ class Post
     public function setCensored(?bool $censored): static
     {
         $this->censored = $censored;
+
+        return $this;
+    }
+
+    public function getRetweet(): ?int
+    {
+        return $this->retweet;
+    }
+
+    public function setRetweet(?int $retweet): static
+    {
+        $this->retweet = $retweet;
+
+        return $this;
+    }
+
+    public function isDeleted(): ?bool
+    {
+        return $this->isDeleted;
+    }
+
+    public function setIsDeleted(?bool $isDeleted): static
+    {
+        $this->isDeleted = $isDeleted;
 
         return $this;
     }

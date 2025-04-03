@@ -24,7 +24,13 @@ class PostController extends AbstractController
         $page = max(1, $request->query->getInt('page', 1));
         $offset = ($page - 1) * $postsPerPage;
 
-        $paginator = $postRepository->paginateAllOrderedByLatest($offset, $postsPerPage);
+        $qb = $postRepository->createQueryBuilder('p')
+            ->where('p.isDeleted IS NULL OR p.isDeleted = false')
+            ->orderBy('p.created_at', 'DESC')
+            ->setFirstResult($offset)
+            ->setMaxResults($postsPerPage);
+
+        $paginator = new \Doctrine\ORM\Tools\Pagination\Paginator($qb);
         
         $totalPosts = count($paginator);
         $maxPages = ceil($totalPosts / $postsPerPage);
@@ -72,12 +78,40 @@ class PostController extends AbstractController
                 ]) !== null;
             }
             
+            // Compter le nombre de retweets
+            $retweetCount = $postRepository->count(['retweet' => $post->getId()]);
+
+            // Si c'est un retweet, récupérer le post original
+            $originalPost = null;
+            if ($post->getRetweet()) {
+                $originalPost = $postRepository->find($post->getRetweet());
+                if ($originalPost) {
+                    $originalPostUser = $originalPost->getUser();
+                    $originalPost = [
+                        'id' => $originalPost->getId(),
+                        'content' => $originalPost->getContent(),
+                        'created_at' => $originalPost->getCreatedAt()->format('Y-m-d H:i:s'),
+                        'media' => $originalPost->getMedia() ? json_decode($originalPost->getMedia()) : [],
+                        'reposts' => $postRepository->count(['retweet' => $originalPost->getId()]),
+                        'author' => [
+                            'id' => $originalPostUser->getId(),
+                            'name' => $originalPostUser->getName(),
+                            'username' => $originalPostUser->getUsername(),
+                            'avatar' => $originalPostUser->getAvatar()
+                        ]
+                    ];
+                }
+            }
+            
             $posts[] = [
                 'id' => $post->getId(),
                 'content' => $post->getContent(),
                 'created_at' => $post->getCreatedAt()->format('Y-m-d H:i:s'),
                 'media' => $post->getMedia() ? json_decode($post->getMedia()) : [],
                 'censored' => $post->isCensored(),
+                'reposts' => $retweetCount,
+                'retweet' => $post->getRetweet(),
+                'original_post' => $originalPost,
                 'author' => [
                     'id' => $user->getId(),
                     'name' => $user->getName(),
@@ -194,6 +228,9 @@ class PostController extends AbstractController
                 'followed' => true
             ]) !== null;
             
+            // Compter le nombre de retweets
+            $retweetCount = $postRepository->count(['retweet' => $post->getId()]);
+            
             $posts[] = [
                 'id' => $post->getId(),
                 'content' => $post->getContent(),
@@ -212,7 +249,8 @@ class PostController extends AbstractController
                 'liked_by' => $likedByIds,
                 'isFollowed' => $isFollowed,
                 'comments' => $comments,
-                'replies' => count($comments)
+                'replies' => count($comments),
+                'reposts' => $retweetCount
             ];
         }
 
@@ -350,7 +388,87 @@ class PostController extends AbstractController
                 throw new \Exception('Post non trouvé');
             }
 
-            // Supprimer les images associées au post
+            // Si c'est un retweet, on vérifie le post original
+            if ($post->getRetweet()) {
+                $originalPost = $postRepository->find($post->getRetweet());
+                
+                // Supprimer le retweet normalement
+                if ($post->getMedia()) {
+                    $mediaUrls = json_decode($post->getMedia(), true);
+                    if (is_array($mediaUrls)) {
+                        $uploadDir = $this->getParameter('uploads_directory') . '/posts';
+                        foreach ($mediaUrls as $imageUrl) {
+                            $filePath = $uploadDir . '/' . $imageUrl;
+                            if (file_exists($filePath)) {
+                                unlink($filePath);
+                            }
+                        }
+                    }
+                }
+
+                // Supprimer les interactions du retweet
+                $interactions = $postInteractionRepository->findBy(['post' => $post]);
+                foreach ($interactions as $interaction) {
+                    $entityManager->remove($interaction);
+                }
+                $entityManager->flush();
+
+                // Supprimer le retweet
+                $postRepository->remove($post, true);
+
+                // Vérifier si le post original n'a plus de retweets et est marqué comme supprimé
+                if ($originalPost && $originalPost->isDeleted()) {
+                    $remainingRetweets = $postRepository->count(['retweet' => $originalPost->getId()]);
+                    if ($remainingRetweets === 0) {
+                        // Supprimer les médias du post original
+                        if ($originalPost->getMedia()) {
+                            $mediaUrls = json_decode($originalPost->getMedia(), true);
+                            if (is_array($mediaUrls)) {
+                                $uploadDir = $this->getParameter('uploads_directory') . '/posts';
+                                foreach ($mediaUrls as $imageUrl) {
+                                    $filePath = $uploadDir . '/' . $imageUrl;
+                                    if (file_exists($filePath)) {
+                                        unlink($filePath);
+                                    }
+                                }
+                            }
+                        }
+
+                        // Supprimer les interactions du post original
+                        $originalInteractions = $postInteractionRepository->findBy(['post' => $originalPost]);
+                        foreach ($originalInteractions as $interaction) {
+                            $entityManager->remove($interaction);
+                        }
+                        $entityManager->flush();
+
+                        // Supprimer le post original
+                        $postRepository->remove($originalPost, true);
+
+                        return $this->json([
+                            'message' => 'Retweet supprimé et post original supprimé car il n\'avait plus de retweets et était marqué comme supprimé'
+                        ], Response::HTTP_OK);
+                    }
+                }
+
+                return $this->json(['message' => 'Retweet supprimé avec succès'], Response::HTTP_OK);
+            }
+
+            // Si ce n'est pas un retweet, vérifier s'il est référencé dans des retweets
+            $retweetCount = $postRepository->count(['retweet' => $post->getId()]);
+            
+            if ($retweetCount > 0) {
+                // Si le post est référencé dans des retweets, on le marque comme supprimé
+                $post->setIsDeleted(true);
+                $entityManager->persist($post);
+                $entityManager->flush();
+
+                return $this->json([
+                    'message' => 'Le post a été marqué comme supprimé car il est référencé dans des retweets',
+                    'isDeleted' => true
+                ], Response::HTTP_OK);
+            }
+
+            // Si le post n'est pas référencé dans des retweets, on peut le supprimer
             if ($post->getMedia()) {
                 $mediaUrls = json_decode($post->getMedia(), true);
                 if (is_array($mediaUrls)) {
@@ -364,14 +482,14 @@ class PostController extends AbstractController
                 }
             }
 
-            // Supprimer d'abord toutes les interactions liées au post
+            // Supprimer les interactions
             $interactions = $postInteractionRepository->findBy(['post' => $post]);
             foreach ($interactions as $interaction) {
                 $entityManager->remove($interaction);
             }
             $entityManager->flush();
 
-            // Ensuite supprimer le post
+            // Supprimer le post
             $postRepository->remove($post, true);
 
             return $this->json(['message' => 'Post, images et interactions supprimés avec succès'], Response::HTTP_OK);
@@ -380,7 +498,7 @@ class PostController extends AbstractController
         }
     }
 
-    #[Route('/posts/{id}/edit', name: 'posts.update', methods: ['POST'])]
+    #[Route('/posts/{id}', name: 'posts.update', methods: ['POST'])]
     public function update(int $id, Request $request, PostRepository $postRepository, UserRepository $userRepository): JsonResponse
     {
         try {
@@ -691,6 +809,93 @@ class PostController extends AbstractController
         }
 
         return $this->json(['posts' => $postsData]);
+    }
+
+    #[Route('/posts/{id}/retweet/{userId}', name: 'posts.retweet', methods: ['POST'])]
+    public function retweet(
+        int $id,
+        int $userId,
+        Request $request,
+        PostRepository $postRepository,
+        UserRepository $userRepository,
+        EntityManagerInterface $entityManager
+    ): JsonResponse {
+        try {
+            $data = json_decode($request->getContent(), true);
+            $originalPost = $postRepository->find($id);
+            
+            if (!$originalPost) {
+                return $this->json(['error' => 'Post non trouvé'], Response::HTTP_NOT_FOUND);
+            }
+
+            // Récupérer l'utilisateur actuel
+            $user = $userRepository->find($userId);
+            if (!$user) {
+                return $this->json(['error' => 'Utilisateur non trouvé'], Response::HTTP_NOT_FOUND);
+            }
+
+            // Vérifier si l'utilisateur est banni
+            if ($user->isBanned()) {
+                return $this->json(['error' => 'Vous ne pouvez pas retweeter car vous êtes banni'], Response::HTTP_FORBIDDEN);
+            }
+
+            // Créer le nouveau post (retweet)
+            $retweet = new Post();
+            $retweet->setContent($data['comment'] ?? '');
+            $retweet->setCreatedAt(new \DateTime());
+            $retweet->setUser($user);
+            $retweet->setRetweet($originalPost->getId());
+
+            // Si le post original contient des médias, les copier
+            if ($originalPost->getMedia()) {
+                $retweet->setMedia($originalPost->getMedia());
+            }
+
+            $entityManager->persist($retweet);
+            $entityManager->flush();
+
+            // Compter le nombre de retweets
+            $retweetCount = $postRepository->count(['retweet' => $originalPost->getId()]);
+
+            // Construire la réponse
+            $response = [
+                'id' => $retweet->getId(),
+                'content' => $retweet->getContent(),
+                'created_at' => $retweet->getCreatedAt()->format('Y-m-d H:i:s'),
+                'media' => $retweet->getMedia() ? json_decode($retweet->getMedia()) : [],
+                'retweet' => $originalPost->getId(),
+                'reposts' => $retweetCount,
+                'author' => [
+                    'id' => $user->getId(),
+                    'name' => $user->getName(),
+                    'username' => $user->getUsername(),
+                    'avatar' => $user->getAvatar(),
+                    'email' => $user->getEmail(),
+                    'banned' => $user->isBanned(),
+                    'lecture' => $user->isLecture()
+                ],
+                'original_post' => [
+                    'id' => $originalPost->getId(),
+                    'content' => $originalPost->getContent(),
+                    'created_at' => $originalPost->getCreatedAt()->format('Y-m-d H:i:s'),
+                    'media' => $originalPost->getMedia() ? json_decode($originalPost->getMedia()) : [],
+                    'reposts' => $retweetCount,
+                    'author' => [
+                        'id' => $originalPost->getUser()->getId(),
+                        'name' => $originalPost->getUser()->getName(),
+                        'username' => $originalPost->getUser()->getUsername(),
+                        'avatar' => $originalPost->getUser()->getAvatar()
+                    ]
+                ]
+            ];
+
+            return $this->json($response, Response::HTTP_CREATED);
+        } catch (\Exception $e) {
+            return $this->json([
+                'error' => 'Une erreur est survenue lors du retweet',
+                'message' => $e->getMessage()
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
     // #[Route('/posts', name: 'posts_create', methods: ['POST'])]

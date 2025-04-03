@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import DeleteModal from './DeleteModal';
 import EditTweetModal from './EditTweetModal';
 import MediaViewer from './MediaViewer';
+import RetweetModal from './RetweetModal';
 
 interface TweetProps {
   post: Post & {
@@ -29,9 +30,10 @@ interface TweetProps {
   onPin?: (postId: number) => void;
   showPinButton?: boolean;
   onHashtagClick?: (hashtag: string) => void;
+  onRetweet?: (postId: number, comment?: string) => void;
 }
 
-const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, showPinButton = false, onHashtagClick }: TweetProps) => {
+const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, showPinButton = false, onHashtagClick, onRetweet }: TweetProps) => {
   let name = localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")!) : null;
   const [isLiked, setIsLiked] = useState(false);
   const [isFollowed, setIsFollowed] = useState(post.isFollowed || false);
@@ -49,6 +51,8 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, showPinButton = 
   const [isCommenting, setIsCommenting] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [isRetweetModalOpen, setIsRetweetModalOpen] = useState(false);
+  const [isRetweeting, setIsRetweeting] = useState(false);
   
   useEffect(() => {
     if (name.id) {
@@ -144,6 +148,20 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, showPinButton = 
     }
   };
 
+  const handleRetweet = async (comment?: string) => {
+    if (!onRetweet) return;
+    
+    try {
+      setIsRetweeting(true);
+      await onRetweet(post.id, comment);
+      setIsRetweetModalOpen(false);
+    } catch (error) {
+      console.error('Erreur lors du retweet:', error);
+    } finally {
+      setIsRetweeting(false);
+    }
+  };
+
   // Valeurs par défaut pour les données manquantes
   const defaultAuthor = {
     name: "Utilisateur",
@@ -200,6 +218,12 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, showPinButton = 
       ) : (
         <>
           <article className={`border-b border-gray-700 p-4 hover:bg-gray-900/50 transition-colors cursor-pointer ${post.isPinned ? 'bg-gray-900/30' : ''}`}>
+            {currentPost.retweet && !currentPost.content && (
+              <div className="flex items-center text-gray-500 text-sm mb-2">
+                <Icon name="repost" className="w-4 h-4 mr-2" />
+                <span>Retweeté par {author.name}</span>
+              </div>
+            )}
             <div className="flex gap-4">
               <img
                 src={`http://localhost:8080/uploads/avatar/${author.avatar}`}
@@ -250,60 +274,48 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, showPinButton = 
                     null
                   )}
                 </div>
-                <div>
-                  <p className="text-white mb-3 break-all break-words whitespace-pre-wrap overflow-hidden max-w-full">
-                    {processText(currentPost.content)}
-                  </p>
-                </div>
-                {currentPost.media && currentPost.media.length > 0 && (
-                  <div className={`mb-3 w-48 rounded-2xl overflow-hidden ${
-                    currentPost.media.length === 1 ? 'w-24' : 'grid gap-1'
-                  }`} style={{
-                    gridTemplateColumns: currentPost.media.length === 1 ? '1fr' :
-                      currentPost.media.length === 2 ? 'repeat(2, 1fr)' :
-                      currentPost.media.length === 3 ? 'repeat(2, 1fr)' :
-                      'repeat(2, 1fr)'
-                  }}>
-                    {currentPost.media.map((imageUrl: string, index: number) => (
-                      <div
-                        key={index}
-                        className={`relative ${
-                          currentPost.media.length === 3 && index === 2 ? 'col-span-2' : ''
-                        } cursor-pointer group`}
-                        onClick={() => openMediaViewer(index)}
-                      >
-                        {imageUrl.endsWith('.mp4') || imageUrl.endsWith('.webm') || imageUrl.endsWith('.mov') ? (
-                          <>
-                            <video
-                              src={`http://localhost:8080/uploads/posts/${imageUrl}`}
-                              className="w-full h-auto object-cover"
-                              style={{
-                                aspectRatio: currentPost.media.length === 1 ? '16/9' : '1/1'
-                              }}
-                              muted
-                            />
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Icon name="play" className="w-10 h-10 text-white" />
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            <img
-                              src={`http://localhost:8080/uploads/posts/${imageUrl}`}
-                              alt={`Media content ${index + 1}`}
-                              className="w-full h-auto object-cover"
-                              style={{
-                                aspectRatio: currentPost.media.length === 1 ? '16/9' : '1/1'
-                              }}
-                            />
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Icon name="search" className="w-10 h-10 text-white" />
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    ))}
+                {currentPost.retweet && currentPost.content && (
+                  <div className="mb-4">
+                    <p className="text-white mb-3 break-all break-words whitespace-pre-wrap overflow-hidden max-w-full">
+                      {processText(currentPost.content)}
+                    </p>
                   </div>
+                )}
+                {currentPost.retweet ? (
+                  <div className="border border-gray-700 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <img
+                        src={`http://localhost:8080/uploads/avatar/${currentPost.original_post?.author.avatar}`}
+                        alt={currentPost.original_post?.author.name}
+                        className="w-8 h-8 rounded-full"
+                      />
+                      <div>
+                        <span className="font-bold text-white">{currentPost.original_post?.author.name}</span>
+                        <span className="text-gray-500 ml-2">@{currentPost.original_post?.author.username}</span>
+                      </div>
+                    </div>
+                    <p className="text-white mb-3 break-all break-words whitespace-pre-wrap overflow-hidden max-w-full">
+                      {processText(currentPost.original_post?.content || '')}
+                    </p>
+                    {currentPost.original_post?.media && currentPost.original_post.media.length > 0 && (
+                      <div className="mb-3">
+                        {/* Afficher les médias du tweet original */}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <p className="text-white mb-3 break-all break-words whitespace-pre-wrap overflow-hidden max-w-full">
+                        {processText(currentPost.content)}
+                      </p>
+                    </div>
+                    {currentPost.media && currentPost.media.length > 0 && (
+                      <div className="mb-3">
+                        {/* Afficher les médias du tweet */}
+                      </div>
+                    )}
+                  </>
                 )}
                 {author.lecture === false || author.lecture === null && (
                   <div className="flex justify-between text-gray-500 max-w-md">
@@ -314,7 +326,11 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, showPinButton = 
                       <Icon name="reply" className="w-5 h-5" />
                       <span>{replies}</span>
                     </Button>
-                    <Button className="bg-transparent flex items-center gap-2 hover:text-green-500 transition-colors">
+                    <Button 
+                      className="bg-transparent flex items-center gap-2 hover:text-green-500 transition-colors"
+                      onClick={() => setIsRetweetModalOpen(true)}
+                      disabled={isRetweeting}
+                    >
                       <Icon name="repost" className="w-5 h-5" />
                       <span>{reposts}</span>
                     </Button>
@@ -416,6 +432,15 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, showPinButton = 
             onClose={() => setIsMediaViewerOpen(false)}
             media={currentPost.media || []}
             initialIndex={mediaViewerIndex}
+          />
+
+          <RetweetModal
+            isOpen={isRetweetModalOpen}
+            onClose={() => setIsRetweetModalOpen(false)}
+            onRetweet={handleRetweet}
+            postContent={currentPost.content}
+            authorName={author.name}
+            authorUsername={author.username}
           />
         </>
       )}

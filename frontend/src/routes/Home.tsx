@@ -200,6 +200,16 @@ const Home = () => {
     );
   }, []);
 
+  const handleRetweet = async (postId: number, comment?: string) => {
+    try {
+      const retweetedPost = await DataRequests.retweetPost(postId, comment);
+      // Mettre à jour les posts avec le nouveau retweet
+      setPosts(prevPosts => [retweetedPost, ...prevPosts]);
+    } catch (error) {
+      console.error('Erreur lors du retweet:', error);
+    }
+  };
+
   return (
     <div className="flex justify-center md:gap-4 min-h-screen bg-black">
       <div className="flex">
@@ -282,6 +292,7 @@ const Home = () => {
                 onDelete={handleDeleteTweet}
                 onEdit={handleEditTweet}
                 onHashtagClick={setInitialQuery}
+                onRetweet={handleRetweet}
               />
             </div>
           ))}

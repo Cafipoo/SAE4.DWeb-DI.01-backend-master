@@ -33,6 +33,19 @@ export interface Post {
     created_at: string;
     media: string[];
     censored: boolean;
+    retweet?: number;
+    original_post?: {
+        id: number;
+        content: string;
+        created_at: string;
+        media: string[];
+        author: {
+            id: number;
+            name: string;
+            username: string;
+            avatar: string;
+        };
+    };
     author: {
         id: number;
         name: string;
@@ -809,6 +822,27 @@ export const DataRequests = {
 
         if (!response.ok) {
             throw new Error('Erreur lors de la recherche des posts');
+        }
+
+        return response.json();
+    },
+
+    retweetPost: async (postId: number, comment?: string): Promise<Post> => {
+        const userId = AuthService.getUserId();
+        if (!userId) {
+            throw new Error('Utilisateur non connecté');
+        }
+
+        const response = await AuthService.authenticatedFetch(`/posts/${postId}/retweet/${userId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ comment })
+        });
+
+        if (!response.ok) {
+            throw new Error('Erreur lors du retweet');
         }
 
         return response.json();
