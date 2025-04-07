@@ -9,10 +9,8 @@ import Backoffice from './routes/Backoffice';
 import Home from './routes/Home';
 import Setting from './routes/Setting';
 import { Navigate } from 'react-router-dom';
+import { NotificationPage } from './routes/Notification';
 
-// let user = localStorage.getItem('user');
-// let userData = JSON.parse(user);
-// let id = userData.id;
 
 
 function App() {
@@ -27,6 +25,7 @@ function App() {
       <Route path="/settings" element={<Setting />} />
       <Route path="/admin" element={<AdminLogin />} />
       <Route path="/backoffice" element={<Backoffice />} />
+      <Route path="/notifications" element={<NotificationPage />} />
       <Route path="/home" element={<Home />} />
     </Routes>
   );

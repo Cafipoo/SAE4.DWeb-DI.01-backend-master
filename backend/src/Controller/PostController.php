@@ -14,6 +14,8 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Doctrine\ORM\Tools\Pagination\Paginator;
+use App\Entity\Notification;
+use App\Entity\User;
 
 class PostController extends AbstractController
 {
@@ -289,9 +291,33 @@ class PostController extends AbstractController
         ]);
     }
 
+    private function handleMentions(string $content, User $author, EntityManagerInterface $entityManager, UserRepository $userRepository): void
+    {
+        // Expression régulière pour trouver les mentions (@username)
+        preg_match_all('/@(\w+)/', $content, $matches);
+        
+        if (!empty($matches[1])) {
+            foreach ($matches[1] as $username) {
+                // Trouver l'utilisateur mentionné
+                $mentionedUser = $userRepository->findOneBy(['username' => $username]);
+                
+                if ($mentionedUser && $mentionedUser->getId() !== $author->getId()) {
+                    // Créer une nouvelle notification
+                    $notification = new Notification();
+                    $notification->setIdReceiver($mentionedUser);
+                    $notification->setIdSend($author->getId());
+                    $notification->setContent("Vous avez été mentionné par @{$author->getUsername()}");
+                    $notification->setIsRead(false);
+                    
+                    $entityManager->persist($notification);
+                }
+            }
+            $entityManager->flush();
+        }
+    }
 
     #[Route('/posts/{id}', name: 'posts.create', methods: ['POST'])]
-    public function create(int $id, Request $request, PostRepository $postRepository, UserRepository $userRepository): JsonResponse
+    public function create(int $id, Request $request, PostRepository $postRepository, UserRepository $userRepository, EntityManagerInterface $entityManager): JsonResponse
     {
         try {
             $data = json_decode($request->getContent(), true);
@@ -374,6 +400,9 @@ class PostController extends AbstractController
 
             $postRepository->save($post, true);
 
+            // Gérer les mentions et créer les notifications
+            $this->handleMentions($data['content'], $user, $entityManager, $userRepository);
+
             return $this->json([
                 'id' => $post->getId(),
                 'content' => $post->getContent(),
@@ -396,7 +425,6 @@ class PostController extends AbstractController
         }
     }
 
-
     #[Route('/posts/{id}', name: 'posts.delete', methods: ['DELETE'])]
     public function delete(
         int $id, 
@@ -410,6 +438,15 @@ class PostController extends AbstractController
             $post = $postRepository->find($id);
             if (!$post) {
                 throw new \Exception('Post non trouvé');
+            }
+
+            // Vérifier si le post est épinglé par un utilisateur
+            $userWithPinnedPost = $userRepository->findOneBy(['pin' => $post]);
+            if ($userWithPinnedPost) {
+                // Désépingler le post
+                $userWithPinnedPost->setPin(null);
+                $entityManager->persist($userWithPinnedPost);
+                $entityManager->flush();
             }
 
             // Si c'est un retweet, on vérifie le post original
@@ -512,7 +549,7 @@ class PostController extends AbstractController
     }
 
     #[Route('/posts/{id}/edit', name: 'posts.update', methods: ['POST'])]
-    public function update(int $id, Request $request, PostRepository $postRepository, UserRepository $userRepository): JsonResponse
+    public function update(int $id, Request $request, PostRepository $postRepository, UserRepository $userRepository, EntityManagerInterface $entityManager): JsonResponse
     {
         try {
             $data = json_decode($request->getContent(), true);
@@ -629,6 +666,9 @@ class PostController extends AbstractController
             }
 
             $postRepository->save($post, true);
+
+            // Gérer les mentions et créer les notifications
+            $this->handleMentions($data['content'], $post->getUser(), $entityManager, $userRepository);
 
             return $this->json([
                 'id' => $post->getId(),
@@ -876,6 +916,20 @@ class PostController extends AbstractController
 
             $entityManager->persist($retweet);
             $entityManager->flush();
+
+            // Créer une notification pour le retweet
+            $notification = new Notification();
+            $notification->setIdReceiver($originalPost->getUser());
+            $notification->setIdSend($user->getId());
+            $notification->setContent("@{$user->getUsername()} a retweeté votre post");
+            $notification->setIsRead(false);
+            $entityManager->persist($notification);
+            $entityManager->flush();
+
+            // Gérer les mentions et créer les notifications
+            if (!empty($data['comment'])) {
+                $this->handleMentions($data['comment'], $user, $entityManager, $userRepository);
+            }
 
             // Compter le nombre de retweets
             $retweetCount = $postRepository->count(['retweet' => $originalPost->getId()]);

@@ -6,6 +6,7 @@ use App\Entity\Post;
 use App\Entity\User;
 use App\Entity\PostInteraction;
 use App\Entity\UserInteraction;
+use App\Entity\Notification;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -35,7 +36,6 @@ class PostInteractionController extends AbstractController
         if ($user->isBanned()) {
             return new JsonResponse(['error' => 'Vous ne pouvez pas liker car vous êtes banni'], 403);
         }
-
 
         // Vérifier si l'utilisateur est banni par l'auteur du post
         $postAuthor = $post->getUser();
@@ -70,6 +70,17 @@ class PostInteractionController extends AbstractController
 
         $entityManager->persist($interaction);
         $entityManager->flush();
+
+        // Créer une notification pour le like
+        if (!$isLiked) { // Si c'est un nouveau like
+            $notification = new Notification();
+            $notification->setIdReceiver($post->getUser());
+            $notification->setIdSend($user->getId());
+            $notification->setContent("@{$user->getUsername()} a aimé votre post");
+            $notification->setIsRead(false);
+            $entityManager->persist($notification);
+            $entityManager->flush();
+        }
 
         // Compter le nombre total de likes pour ce post
         $likesCount = $entityManager->getRepository(PostInteraction::class)->count([
@@ -139,7 +150,6 @@ class PostInteractionController extends AbstractController
             return new JsonResponse(['error' => 'Vous ne pouvez pas commenter car vous êtes banni'], 403);
         }
 
-
         // Vérifier si l'utilisateur est banni par l'auteur du post
         $postAuthor = $post->getUser();
         $interaction = $entityManager->getRepository(UserInteraction::class)->findOneBy([
@@ -148,7 +158,7 @@ class PostInteractionController extends AbstractController
             'isBanned' => true
         ]);
         if ($postAuthor->isLecture()) {
-            return new JsonResponse(['error' => 'Vous ne pouvez pas liker car l\'utilisateur est en mode lecture'], 403);
+            return new JsonResponse(['error' => 'Vous ne pouvez pas commenter car l\'utilisateur est en mode lecture'], 403);
         }
 
         if ($interaction) {
@@ -175,6 +185,15 @@ class PostInteractionController extends AbstractController
             $entityManager->persist($interaction);
         }
 
+        $entityManager->flush();
+
+        // Créer une notification pour le commentaire
+        $notification = new Notification();
+        $notification->setIdReceiver($post->getUser());
+        $notification->setIdSend($user->getId());
+        $notification->setContent("@{$user->getUsername()} a commenté votre post");
+        $notification->setIsRead(false);
+        $entityManager->persist($notification);
         $entityManager->flush();
 
         return new JsonResponse([

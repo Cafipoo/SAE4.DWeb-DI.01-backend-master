@@ -910,4 +910,27 @@ export const DataRequests = {
             throw error;
         }
     },
+
+    async getNotification(userId: number): Promise<Notification[]> {
+        const response = await AuthService.authenticatedFetch(`/notifications/${userId}`);
+        return response.json();
+    },
+
+    async markNotificationAsRead(notificationId: number): Promise<void> {
+        const response = await AuthService.authenticatedFetch(`/notifications/${notificationId}/read`, {
+            method: 'POST',
+        });
+        if (!response.ok) {
+            throw new Error('Erreur lors de la mise à jour de la notification');
+        }
+    },
+
+    async markAllNotificationsAsRead(userId: number): Promise<void> {
+        const response = await AuthService.authenticatedFetch(`/notifications/${userId}/read-all`, {
+            method: 'POST',
+        });
+        if (!response.ok) {
+            throw new Error('Erreur lors de la mise à jour de toutes les notifications');
+        }
+    },
 }; 

@@ -14,6 +14,7 @@ const navItems = [
   // { icon: "messages", label: "Messages", path: "/messages" },
   { icon: 'profile', label: "Profil", path: "/profile/" + AuthService.getUsername() },
   { icon: "settings", label: "Paramètres", path: "/settings" },
+  { icon: "notifications", label: "Notifications", path: "/notifications" },
   // { icon: "more", label: "Plus", path: "/more" }
 ];
 
