@@ -12,14 +12,15 @@ const Setting = () => {
     }
   const [sliderValue, setSliderValue] = useState(reloading);
   const [readOnlyMode, setReadOnlyMode] = useState(false);
-
+  const [privateMode, setPrivateMode] = useState(false);
+  
   const handleSliderChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSliderValue(Number(event.target.value));
   };
 
   const handleSubmit = async () => {
     try {
-      await DataRequests.updateSetting(userJson.id, sliderValue.toString(), readOnlyMode);
+      await DataRequests.updateSetting(userJson.id, sliderValue.toString(), readOnlyMode, privateMode);
       let user = localStorage.getItem("user");
       let datauser = JSON.parse(user!);
       datauser.reloading = sliderValue;
@@ -75,6 +76,24 @@ const Setting = () => {
                     className="sr-only peer"
                     checked={readOnlyMode}
                     onChange={(e) => setReadOnlyMode(e.target.checked)}
+                  />
+                  <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-white font-medium">Mode privé</label>
+                  <p className="text-gray-400 text-sm">Seul vos abonnés peuvent voir vos tweets</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="sr-only peer"
+                    checked={privateMode}
+                    onChange={(e) => setPrivateMode(e.target.checked)}
                   />
                   <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                 </label>

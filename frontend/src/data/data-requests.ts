@@ -11,10 +11,12 @@ export interface User {
     bio: string | null;
     location: string | null;
     siteWeb: string | null;
+    privateMode: boolean;
     banned: boolean;
     is_banned_by_current_user: boolean;
     followers_count: number;
     following_count: number;
+    is_pending?: boolean;
 }
 
 export interface AdminApiResponse {
@@ -53,6 +55,7 @@ export interface Post {
         avatar: string;
         banned: boolean;
         lecture?: boolean;
+        privateMode?: boolean;
     };
     likes_count: number;
     liked_by: number[];
@@ -240,7 +243,7 @@ export const DataRequests = {
         }
     },
 
-    async followUser(userId: number, followedUserId: number, isFollowed: boolean): Promise<void> {
+    async followUser(userId: number, followedUserId: number, isFollowed: boolean): Promise<{ success: boolean; isFollowing: boolean; pending?: boolean }> {
         const response = await AuthService.authenticatedFetch(`/users/${followedUserId}/follow`, {
             method: 'POST',
             headers: {
@@ -256,6 +259,7 @@ export const DataRequests = {
             const errorData = await response.json();
             throw new Error(errorData.error || 'Erreur lors du suivi');
         }
+        return await response.json();
     },
 
     async isUserFollowed(userId: number, followedUserId: number): Promise<boolean> {
@@ -429,7 +433,7 @@ export const DataRequests = {
         }
     },
 
-    async updateUser(userId: number, userData: { username: string; name: string; bio: string | null, banned: boolean }): Promise<User> {
+    async updateUser(userId: number, userData: { username: string; name: string; bio: string | null, banned: boolean, private: boolean }): Promise<User> {
         try {
             const response = await AuthService.authenticatedFetch(`/update/user/${userId}`, {
                 method: 'POST',
@@ -472,7 +476,7 @@ export const DataRequests = {
             throw error;
         }
     },
-    async updateSetting(userId: number, reloading: string, lecture: boolean): Promise<User> {
+    async updateSetting(userId: number, reloading: string, lecture: boolean, privateMode: boolean): Promise<User> {
         try {
             const response = await AuthService.authenticatedFetch(`/update/settings/${userId}`, {
                 method: 'POST',
@@ -480,7 +484,7 @@ export const DataRequests = {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json'
                 },
-                body: JSON.stringify({ reloading, lecture })
+                body: JSON.stringify({ reloading, lecture, privateMode })
             });
 
             const responseText = await response.text();
@@ -913,7 +917,8 @@ export const DataRequests = {
 
     async getNotification(userId: number): Promise<Notification[]> {
         const response = await AuthService.authenticatedFetch(`/notifications/${userId}`);
-        return response.json();
+        const data = await response.json();
+        return Array.isArray(data) ? data : data.notifications || [];
     },
 
     async markNotificationAsRead(notificationId: number): Promise<void> {
@@ -933,4 +938,23 @@ export const DataRequests = {
             throw new Error('Erreur lors de la mise à jour de toutes les notifications');
         }
     },
+
+    async getUnreadCount(userId: number): Promise<{ unread_count: number }> {
+        const response = await AuthService.authenticatedFetch(`/notifications/${userId}/unread-count`);
+        return response.json();
+    },
+
+    async acceptFollowRequest(pendingId: number, senderId: number): Promise<{ success: boolean }> {
+        const response = await AuthService.authenticatedFetch(`/pending/accept/${pendingId}/${senderId}`, {
+            method: 'POST'
+        });
+        return response.json();
+    },
+
+    async rejectFollowRequest(pendingId: number): Promise<{ success: boolean }> {
+        const response = await AuthService.authenticatedFetch(`/pending/reject/${pendingId}`, {
+            method: 'POST'
+        });
+        return response.json();
+    }
 }; 

@@ -22,6 +22,19 @@ const Sidebar = () => {
   const location = useLocation();
   const [user, setUser] = useState<User | null>(null);
   const [isTweetModalOpen, setIsTweetModalOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const fetchUnreadCount = async () => {
+    try {
+      const userId = AuthService.getUserId();
+      if (userId) {
+        const response = await DataRequests.getUnreadCount(userId);
+        setUnreadCount(response.unread_count);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la récupération du nombre de notifications non lues:', error);
+    }
+  };
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -34,6 +47,21 @@ const Sidebar = () => {
     };
 
     fetchUserData();
+    fetchUnreadCount();
+
+    // Rafraîchir le compteur toutes les 30 secondes
+    const interval = setInterval(fetchUnreadCount, 30000);
+
+    // Écouter l'événement de mise à jour des notifications
+    const handleNotificationsUpdated = () => {
+      fetchUnreadCount();
+    };
+    window.addEventListener('notifications-updated', handleNotificationsUpdated);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('notifications-updated', handleNotificationsUpdated);
+    };
   }, []);
 
   const handleTweetSuccess = () => {
@@ -50,10 +78,11 @@ const Sidebar = () => {
     <>
       {/* Mobile Navigation */}
       <ul className="fixed bottom-0 left-0 flex justify-around items-center h-16 right-0 border-t bg-black border-gray-800 md:hidden z-50">
-          {navItems.map((item) => (
-            <li key={item.path}>
-              <Link
-                to={item.path}
+          {navItems.map((item) => {
+            return (
+              <li key={item.path}>
+                <Link
+                  to={item.path}
                   className={`flex items-center text-xl p-3 rounded-full hover:bg-gray-900 transition-colors list-none ${
                     location.pathname === item.path
                       ? 'text-white font-bold'
@@ -63,7 +92,8 @@ const Sidebar = () => {
                   <Icon name={item.icon} className="w-7 h-7" />
                 </Link>
               </li>
-            ))}
+            );
+          })}
           <Button
               variant="tertiary"
               size="icon"
@@ -95,6 +125,26 @@ const Sidebar = () => {
         <nav className="flex-1 px-2">
           <ul className="space-y-1">
             {navItems.map((item) => (
+              (item.icon === "notifications" && unreadCount > 0) ? (
+                <li key={item.path}>
+                <Link
+                  to={item.path}
+                  className={`group flex items-center text-xl p-3 rounded-full hover:bg-gray-900 transition-colors relative ${
+                    location.pathname === item.path
+                      ? 'text-white font-bold'
+                      : 'text-secondary'
+                  }`}
+                >
+                  <Icon name={item.icon} className="w-7 h-7" />
+                  <span className="ml-4 group-hover:text-white transition-colors">
+                    {item.label}
+                  </span>
+                  <span className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+                    {unreadCount}
+                  </span>
+                </Link>
+              </li>
+              ) : (
               <li key={item.path}>
                 <Link
                   to={item.path}
@@ -110,6 +160,7 @@ const Sidebar = () => {
                   </span>
                 </Link>
               </li>
+              )
             ))}
           </ul>
 

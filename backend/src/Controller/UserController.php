@@ -14,6 +14,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use App\Repository\UserInteractionRepository;
 use App\Entity\UserInteraction;
+use App\Repository\PendingRepository;
 
 class UserController extends AbstractController
 {
@@ -119,6 +120,7 @@ class UserController extends AbstractController
         UserRepository $userRepository, 
         PostRepository $postRepository, 
         UserInteractionRepository $userInteractionRepository,
+        PendingRepository $pendingRepository,
         string $username
     ): JsonResponse {
         $user = $userRepository->findOneBy(['username' => $username]);
@@ -138,6 +140,13 @@ class UserController extends AbstractController
             'secondUser' => $user
         ]);
         $isBanned = $interaction ? $interaction->isBanned() : false;
+
+        // Vérifier si l'utilisateur connecté a une demande de suivi en attente
+        $pendingRequest = $pendingRepository->findOneBy([
+            'userSending' => $currentUser,
+            'userReceive' => $user
+        ]);
+        $isPending = $pendingRequest !== null;
 
         // Récupérer les posts de l'utilisateur
         $posts = $postRepository->findBy(['user' => $user], ['created_at' => 'DESC']);
@@ -161,6 +170,8 @@ class UserController extends AbstractController
             'is_banned_by_current_user' => $isBanned,
             'followers_count' => $followersCount,
             'following_count' => $followingCount,
+            'privateMode' => $user->isPrivate(),
+            'is_pending' => $isPending,
             'posts' => array_map(function($post) {
                 return [
                     'id' => $post->getId(),
@@ -270,9 +281,13 @@ class UserController extends AbstractController
             if (!isset($data['lecture'])) {
                 return $this->json(['error' => 'Champs requis manquants'], Response::HTTP_BAD_REQUEST);
             }
+            if (!isset($data['privateMode'])) {
+                return $this->json(['error' => 'Champs requis manquants'], Response::HTTP_BAD_REQUEST);
+            }
 
             $user->setReloading($data['reloading']);
             $user->setLecture($data['lecture']);
+            $user->setIsPrivate($data['privateMode']);
             $entityManager->persist($user);
             $entityManager->flush();
 
@@ -280,7 +295,8 @@ class UserController extends AbstractController
                 'message' => 'Utilisateur mis à jour avec succès',
                 'user' => [
                     'reloading' => $user->getReloading(),
-                    'lecture' => $user->isLecture()
+                    'lecture' => $user->isLecture(),
+                    'privateMode' => $user->isPrivate()
                 ]
             ]);
 
@@ -316,7 +332,8 @@ class UserController extends AbstractController
                 'id' => $post->getId(),
                 'content' => $post->getContent(),
                 'media' => $post->getMedia() ? json_decode($post->getMedia()) : [],
-                'created_at' => $post->getCreatedAt()->format('Y-m-d H:i:s')
+                'created_at' => $post->getCreatedAt()->format('Y-m-d H:i:s'),
+                'censored' => $post->isCensored()
             ];
         }, $posts);
 
@@ -329,7 +346,8 @@ class UserController extends AbstractController
                 'id' => $pinnedPost->getId(),
                 'content' => $pinnedPost->getContent(),
                 'media' => $pinnedPost->getMedia() ? json_decode($pinnedPost->getMedia()) : [],
-                'created_at' => $pinnedPost->getCreatedAt()->format('Y-m-d H:i:s')
+                'created_at' => $pinnedPost->getCreatedAt()->format('Y-m-d H:i:s'),
+                'censored' => $pinnedPost->isCensored()
             ];
         }
 

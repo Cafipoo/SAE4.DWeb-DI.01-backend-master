@@ -260,6 +260,7 @@ const Profile = () => {
           }}
           isInitiallyFollowed={followedUsers.includes(user.id)}
           isInitiallyBanned={bannedUsers.some(bannedUser => bannedUser.id === user.id)}
+          isInitiallyPending={user.is_pending || false}
           onFollowUpdate={handleFollowUpdate}
         />
 
@@ -269,83 +270,96 @@ const Profile = () => {
           <div className="space-y-4 py-4">
             {activeTab === 'posts' ? (
               <>
-                {/* Tweet épinglé */}
-                {pinnedPost && (
-                  <div className="mb-4">
-                    <div className="text-gray-500 text-sm mb-2">Tweet épinglé</div>
-                    <Tweet
-                      post={{
-                        ...pinnedPost,
-                        isPinned: true,
-                        reposts: 0,
-                        replies: 0,
-                        isFollowed: followedUsers.includes(user.id),
-                        author: {
-                          id: user.id,
-                          name: user.name,
-                          username: user.username,
-                          avatar: user.avatar || '',
-                          banned: user.banned || false,
-                          lecture: false
-                        }
-                      }}
-                      onDelete={handleDeleteTweet}
-                      onFollowUpdate={handleFollowUpdate}
-                      onEdit={handleEditTweet}
-                      onPin={handlePinPost}
-                      showPinButton={true}
-                    />
+                {user.privateMode && !followedUsers.includes(user.id) && user.id !== AuthService.getUserId() ? (
+                  <div className="flex flex-col items-center justify-center py-12">
+                    <svg className="w-16 h-16 text-gray-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    <p className="text-gray-500 text-center">
+                      Veuillez suivre ce compte pour voir ses tweets
+                    </p>
                   </div>
-                )}
-
-                {/* Liste des tweets */}
-                {posts.length > 0 ? (
-                  posts.map((post, index) => (
-                    <div
-                      key={post.id}
-                      ref={index === posts.length - 1 ? lastPostElementRef : undefined}
-                    >
-                      <Tweet
-                        post={{
-                          ...post,
-                          reposts: 0,
-                          replies: 0,
-                          isFollowed: followedUsers.includes(user.id),
-                          isPinned: post.id === pinnedPost?.id,
-                          author: {
-                            id: user.id,
-                            name: user.name,
-                            username: user.username,
-                            avatar: user.avatar || '',
-                            banned: user.banned || false,
-                            lecture: false
-                          }
-                        }}
-                        onDelete={handleDeleteTweet}
-                        onFollowUpdate={handleFollowUpdate}
-                        onEdit={handleEditTweet}
-                        onPin={handlePinPost}
-                        showPinButton={true}
-                      />
-                    </div>
-                  ))
                 ) : (
-                  <div className="text-gray-500 text-center py-8">
-                    Aucun post pour le moment
-                  </div>
-                )}
+                  <>
+                    {/* Tweet épinglé */}
+                    {pinnedPost && (
+                      <div className="mb-4">
+                        <div className="text-gray-500 text-sm mb-2">Tweet épinglé</div>
+                        <Tweet
+                          post={{
+                            ...pinnedPost,
+                            isPinned: true,
+                            reposts: 0,
+                            replies: 0,
+                            isFollowed: followedUsers.includes(user.id),
+                            author: {
+                              id: user.id,
+                              name: user.name,
+                              username: user.username,
+                              avatar: user.avatar || '',
+                              banned: user.banned || false,
+                              lecture: false
+                            }
+                          }}
+                          onDelete={handleDeleteTweet}
+                          onFollowUpdate={handleFollowUpdate}
+                          onEdit={handleEditTweet}
+                          onPin={handlePinPost}
+                          showPinButton={true}
+                        />
+                      </div>
+                    )}
 
-                {loadingMore && (
-                  <div className="text-center py-4">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto"></div>
-                    <p className="text-gray-500 mt-2">Chargement des tweets...</p>
-                  </div>
-                )}
+                    {/* Liste des tweets */}
+                    {posts.length > 0 ? (
+                      posts.map((post, index) => (
+                        <div
+                          key={post.id}
+                          ref={index === posts.length - 1 ? lastPostElementRef : undefined}
+                        >
+                          <Tweet
+                            post={{
+                              ...post,
+                              reposts: 0,
+                              replies: 0,
+                              isFollowed: followedUsers.includes(user.id),
+                              isPinned: post.id === pinnedPost?.id,
+                              author: {
+                                id: user.id,
+                                name: user.name,
+                                username: user.username,
+                                avatar: user.avatar || '',
+                                banned: user.banned || false,
+                                lecture: false
+                              }
+                            }}
+                            onDelete={handleDeleteTweet}
+                            onFollowUpdate={handleFollowUpdate}
+                            onEdit={handleEditTweet}
+                            onPin={handlePinPost}
+                            showPinButton={true}
+                          />
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-gray-500 text-center py-8">
+                        Aucun post pour le moment
+                      </div>
+                    )}
 
-                {!hasMore && posts.length > 0 && (
-                  <div className="text-gray-500 text-center py-4">
-                    Vous avez vu tous les tweets
-                  </div>
+                    {loadingMore && (
+                      <div className="text-center py-4">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto"></div>
+                        <p className="text-gray-500 mt-2">Chargement des tweets...</p>
+                      </div>
+                    )}
+
+                    {!hasMore && posts.length > 0 && (
+                      <div className="text-gray-500 text-center py-4">
+                        Vous avez vu tous les tweets
+                      </div>
+                    )}
+                  </>
                 )}
               </>
             ) : (

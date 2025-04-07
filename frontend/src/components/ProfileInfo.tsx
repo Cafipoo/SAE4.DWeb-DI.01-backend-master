@@ -17,6 +17,7 @@ interface ProfileInfoProps {
   userId: number;
   isInitiallyFollowed?: boolean;
   isInitiallyBanned?: boolean;
+  isInitiallyPending?: boolean;
   onFollowUpdate?: (userId: number, isFollowed: boolean) => void;
   onBannedUpdate?: (userId: number, isBanned: boolean) => void;
 }
@@ -30,11 +31,13 @@ const ProfileInfo = ({
   userId,
   isInitiallyFollowed = false,
   isInitiallyBanned = false,
+  isInitiallyPending = false,
   onFollowUpdate,
   onBannedUpdate 
 }: ProfileInfoProps) => {
   const [isFollowed, setIsFollowed] = useState(isInitiallyFollowed);
   const [isBanned, setIsBanned] = useState(isInitiallyBanned);
+  const [isPending, setIsPending] = useState(isInitiallyPending);
 
   const handleFollow = async () => {
     try {
@@ -53,10 +56,18 @@ const ProfileInfo = ({
       const currentIsFollowed = isFollowed;
       setIsFollowed(!currentIsFollowed);
       console.log(currentUserId, userId, currentIsFollowed);
-      await DataRequests.followUser(currentUserId, userId, currentIsFollowed);
+      const response = await DataRequests.followUser(currentUserId, userId, currentIsFollowed);
+
+      if (response.pending) {
+        setIsPending(true);
+        setIsFollowed(false);
+      } else {
+        setIsPending(false);
+        setIsFollowed(!currentIsFollowed);
+      }
 
       if (onFollowUpdate) {
-        onFollowUpdate(userId, currentIsFollowed);
+        onFollowUpdate(userId, !currentIsFollowed);
       }
     } catch (error) {
       setIsFollowed(isFollowed);
@@ -113,13 +124,13 @@ const ProfileInfo = ({
       {userId !== AuthService.getUserId() && 
         <>
         <Button 
-          variant={isFollowed ? "secondary" : "tertiary"} 
+          variant={isFollowed ? "secondary" : isPending ? "default" : "tertiary"} 
           size="sm" 
           rounded="full"
           onClick={handleFollow}
-          disabled={isBanned}
+          disabled={isBanned || isPending}
         >
-          {isFollowed ? "Ne plus suivre" : "Suivre"}
+          {isFollowed ? "Ne plus suivre" : isPending ? "En attente" : "Suivre"}
         </Button>
         <Button 
           variant={isBanned ? "secondary" : "default"} 

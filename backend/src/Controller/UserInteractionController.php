@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\User;
 use App\Entity\UserInteraction;
 use App\Entity\Notification;
+use App\Entity\Pending;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -22,7 +23,7 @@ class UserInteractionController extends AbstractController
         try {
             $data = json_decode($request->getContent(), true);
             $followerId = $data['userId'] ?? null;
-            $isFollowing = $data['isFollowing'] ?? false;
+            $isFollowing = $data['isFollowed'] ?? false;
 
             if (!$followerId) {
                 return new JsonResponse(['error' => 'ID utilisateur manquant'], 400);
@@ -41,26 +42,73 @@ class UserInteractionController extends AbstractController
                 return new JsonResponse(['error' => 'Vous ne pouvez pas suivre car vous êtes banni'], 403);
             }
 
-            // Rechercher une interaction existante
-            $interaction = $entityManager->getRepository(UserInteraction::class)->findOneBy([
-                'user' => $userToFollow,
-                'secondUser' => $follower
-            ]);
+            // Si l'utilisateur est en mode privé et qu'on veut le suivre
+            if ($userToFollow->isPrivate() && !$isFollowing) {
+                // Vérifier si une demande en attente existe déjà
+                $existingPending = $entityManager->getRepository(Pending::class)->findOneBy([
+                    'userSending' => $follower,
+                    'userReceive' => $userToFollow
+                ]);
 
-            if (!$interaction) {
-                $interaction = new UserInteraction();
-                $interaction->setUser($userToFollow);
-                $interaction->setSecondUser($follower);
+                if (!$existingPending) {
+                    // Créer une nouvelle demande en attente
+                    $pending = new Pending();
+                    $pending->setUserSending($follower);
+                    $pending->setUserReceive($userToFollow);
+                    $entityManager->persist($pending);
+                    $entityManager->flush();
+
+                    // // Créer une notification pour la demande de suivi
+                    // $notification = new Notification();
+                    // $notification->setIdReceiver($userToFollow);
+                    // $notification->setIdSend($follower->getId());
+                    // $notification->setContent("@{$follower->getUsername()} veut vous suivre");
+                    // $notification->setIsRead(false);
+                    // $entityManager->persist($notification);
+                    // $entityManager->flush();
+                }
+
+                return new JsonResponse([
+                    'success' => true,
+                    'isFollowing' => false,
+                    'pending' => true
+                ]);
             }
 
-            // Mettre à jour le statut du follow
-            $interaction->setFollowed(!$isFollowing);
+            // Si on veut arrêter de suivre ou si le compte n'est pas privé
+            if ($isFollowing) {
+                // Rechercher une interaction existante
+                $interaction = $entityManager->getRepository(UserInteraction::class)->findOneBy([
+                    'user' => $follower,
+                    'secondUser' => $userToFollow
+                ]);
 
-            $entityManager->persist($interaction);
-            $entityManager->flush();
+                if ($interaction) {
+                    $entityManager->remove($interaction);
+                    $entityManager->flush();
+                }
 
-            // Créer une notification pour le follow
-            if (!$isFollowing) { // Si c'est un nouveau follow
+                // Vérifier et supprimer une demande en attente si elle existe
+                $pending = $entityManager->getRepository(Pending::class)->findOneBy([
+                    'userSending' => $follower,
+                    'userReceive' => $userToFollow
+                ]);
+
+                if ($pending) {
+                    $entityManager->remove($pending);
+                    $entityManager->flush();
+                }
+            } else {
+                // Créer une nouvelle interaction de suivi
+                $interaction = new UserInteraction();
+                $interaction->setUser($follower);
+                $interaction->setSecondUser($userToFollow);
+                $interaction->setFollowed(true);
+
+                $entityManager->persist($interaction);
+                $entityManager->flush();
+
+                // Créer une notification pour le follow
                 $notification = new Notification();
                 $notification->setIdReceiver($userToFollow);
                 $notification->setIdSend($follower->getId());
@@ -72,9 +120,11 @@ class UserInteractionController extends AbstractController
 
             return new JsonResponse([
                 'success' => true,
-                'isFollowing' => !$isFollowing
+                'isFollowing' => !$isFollowing,
+                'pending' => false
             ]);
         } catch (\Exception $e) {
+            error_log('Erreur dans toggleFollow: ' . $e->getMessage());
             return new JsonResponse([
                 'error' => 'Une erreur est survenue lors de la modification du suivi',
                 'message' => $e->getMessage()

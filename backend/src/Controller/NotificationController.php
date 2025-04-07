@@ -6,6 +6,7 @@ use App\Entity\Notification;
 use App\Entity\User;
 use App\Repository\NotificationRepository;
 use App\Repository\UserRepository;
+use App\Repository\PendingRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -18,7 +19,8 @@ class NotificationController extends AbstractController
     public function getNotifications(
         int $id,
         NotificationRepository $notificationRepository,
-        UserRepository $userRepository
+        UserRepository $userRepository,
+        PendingRepository $pendingRepository
     ): JsonResponse {
         try {
             // Vérifier si l'utilisateur existe
@@ -30,8 +32,36 @@ class NotificationController extends AbstractController
             // Récupérer toutes les notifications de l'utilisateur
             $notifications = $notificationRepository->findBy(
                 ['id_receiver' => $user],
-                ['id' => 'DESC'] // Trier par ID décroissant (les plus récentes en premier)
+                ['id' => 'ASC']
             );
+
+            // Récupérer les demandes de suivi en attente
+            $pendingRequests = $pendingRepository->findBy(
+                ['userReceive' => $user]
+            );
+
+            // Convertir les demandes en attente en notifications
+            $pendingNotifications = array_map(function ($pending) {
+                $sender = $pending->getUserSending();
+                return [
+                    'id' => 'pending_' . $pending->getId(),
+                    'content' => "@{$sender->getUsername()} ({$sender->getName()}) souhaite vous suivre",
+                    'is_read' => false,
+                    'is_pending' => true,
+                    'pending_id' => $pending->getId(),
+                    'sender' => [
+                        'id' => $sender->getId(),
+                        'name' => $sender->getName(),
+                        'username' => $sender->getUsername(),
+                        'avatar' => $sender->getAvatar()
+                    ]
+                ];
+            }, $pendingRequests);
+
+            // Trier les notifications par isRead (false en premier)
+            usort($notifications, function ($a, $b) {
+                return $a->isRead() ? 1 : -1;
+            });
 
             // Formater les notifications avec les informations de l'expéditeur
             $formattedNotifications = array_map(function ($notification) use ($userRepository) {
@@ -41,6 +71,7 @@ class NotificationController extends AbstractController
                     'id' => $notification->getId(),
                     'content' => $notification->getContent(),
                     'is_read' => $notification->isRead(),
+                    'is_pending' => false,
                     'sender' => [
                         'id' => $sender->getId(),
                         'name' => $sender->getName(),
@@ -50,8 +81,21 @@ class NotificationController extends AbstractController
                 ];
             }, $notifications);
 
+            // Combiner les notifications normales et les demandes en attente
+            $allNotifications = array_merge($formattedNotifications, $pendingNotifications);
+
+            // Trier les notifications : pending d'abord, puis non lues, puis lues
+            usort($allNotifications, function ($a, $b) {
+                // Si l'une est pending et l'autre non, la pending passe en premier
+                if ($a['is_pending'] !== $b['is_pending']) {
+                    return $a['is_pending'] ? -1 : 1;
+                }
+                // Si les deux sont pending ou non pending, trier par is_read
+                return $a['is_read'] ? 1 : -1;
+            });
+
             return new JsonResponse([
-                'notifications' => $formattedNotifications
+                'notifications' => $allNotifications
             ]);
         } catch (\Exception $e) {
             return new JsonResponse([
@@ -118,6 +162,35 @@ class NotificationController extends AbstractController
         } catch (\Exception $e) {
             return new JsonResponse([
                 'error' => 'Une erreur est survenue lors de la mise à jour des notifications',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+    #[Route('/notifications/{id}/unread-count', name: 'notifications.unread_count', methods: ['GET'])]
+    public function getUnreadCount(
+        int $id,
+        NotificationRepository $notificationRepository,
+        UserRepository $userRepository
+    ): JsonResponse {
+        try {
+            // Vérifier si l'utilisateur existe
+            $user = $userRepository->find($id);
+            if (!$user) {
+                return new JsonResponse(['error' => 'Utilisateur non trouvé'], 404);
+            }
+
+            // Compter les notifications non lues
+            $unreadCount = $notificationRepository->count([
+                'id_receiver' => $user,
+                'isRead' => false
+            ]);
+
+            return new JsonResponse([
+                'unread_count' => $unreadCount
+            ]);
+        } catch (\Exception $e) {
+            return new JsonResponse([
+                'error' => 'Une erreur est survenue lors du comptage des notifications non lues',
                 'message' => $e->getMessage()
             ], 500);
         }

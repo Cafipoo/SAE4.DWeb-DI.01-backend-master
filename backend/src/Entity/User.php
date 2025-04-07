@@ -70,6 +70,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\OneToOne(cascade: ['persist', 'remove'])]
     private ?Post $pin = null;
 
+    #[ORM\Column(nullable: true)]
+    private ?bool $isPrivate = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -306,6 +309,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setPin(?Post $pin): static
     {
         $this->pin = $pin;
+
+        return $this;
+    }
+
+    public function isPrivate(): ?bool
+    {
+        return $this->isPrivate;
+    }
+
+    public function setIsPrivate(?bool $isPrivate): static
+    {
+        $this->isPrivate = $isPrivate;
 
         return $this;
     }

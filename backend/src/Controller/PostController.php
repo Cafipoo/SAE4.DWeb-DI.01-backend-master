@@ -26,8 +26,15 @@ class PostController extends AbstractController
         $page = max(1, $request->query->getInt('page', 1));
         $offset = ($page - 1) * $postsPerPage;
 
+        // Récupérer l'ID de l'utilisateur depuis la requête pour vérifier les follows
+        $currentUserId = $request->query->getInt('userId', 0);
+
         $qb = $postRepository->createQueryBuilder('p')
+            ->leftJoin('p.user', 'u')
+            ->leftJoin('App\Entity\UserInteraction', 'ui', 'WITH', 'ui.user = :currentUserId AND ui.secondUser = u.id AND ui.followed = true')
             ->where('p.isDeleted IS NULL OR p.isDeleted = false')
+            ->andWhere('u.isPrivate = false OR u.isPrivate IS NULL OR ui.id IS NOT NULL OR u.id = :currentUserId')
+            ->setParameter('currentUserId', $currentUserId)
             ->orderBy('p.created_at', 'DESC')
             ->setFirstResult($offset)
             ->setMaxResults($postsPerPage);
@@ -36,9 +43,6 @@ class PostController extends AbstractController
         
         $totalPosts = count($paginator);
         $maxPages = ceil($totalPosts / $postsPerPage);
-
-        // Récupérer l'ID de l'utilisateur depuis la requête pour vérifier les follows
-        $currentUserId = $request->query->getInt('userId', 0);
 
         $posts = [];
         foreach ($paginator as $post) {
@@ -65,7 +69,8 @@ class PostController extends AbstractController
                         'id' => $interaction->getIdUser()->getId(),
                         'name' => $interaction->getIdUser()->getName(),
                         'username' => $interaction->getIdUser()->getUsername(),
-                        'avatar' => $interaction->getIdUser()->getAvatar()
+                        'avatar' => $interaction->getIdUser()->getAvatar(),
+                        'privateMode' => $interaction->getIdUser()->isPrivate()
                     ]
                 ];
             })->toArray();
@@ -99,7 +104,8 @@ class PostController extends AbstractController
                             'id' => $originalPostUser->getId(),
                             'name' => $originalPostUser->getName(),
                             'username' => $originalPostUser->getUsername(),
-                            'avatar' => $originalPostUser->getAvatar()
+                            'avatar' => $originalPostUser->getAvatar(),
+                            'privateMode' => $originalPostUser->isPrivate()
                         ]
                     ];
                 }
@@ -121,7 +127,8 @@ class PostController extends AbstractController
                     'avatar' => $user->getAvatar(),
                     'email' => $user->getEmail(),
                     'banned' => $user->isBanned(),
-                    'lecture' => $user->isLecture()
+                    'lecture' => $user->isLecture(),
+                    'privateMode' => $user->isPrivate()
                 ],
                 'likes_count' => count($likes),
                 'liked_by' => $likedByIds,
@@ -244,6 +251,7 @@ class PostController extends AbstractController
                         'content' => $post->getRetweetContent() ?? $originalPost->getContent(),
                         'created_at' => $originalPost->getCreatedAt()->format('Y-m-d H:i:s'),
                         'media' => $post->getRetweetMedia() ? json_decode($post->getRetweetMedia()) : ($originalPost->getMedia() ? json_decode($originalPost->getMedia()) : []),
+                        'censored' => $originalPost->isCensored(),
                         'reposts' => $postRepository->count(['retweet' => $originalPost->getId()]),
                         'author' => [
                             'id' => $originalPostUser->getId(),
@@ -260,6 +268,7 @@ class PostController extends AbstractController
                 'content' => $post->getContent(),
                 'created_at' => $post->getCreatedAt()->format('Y-m-d H:i:s'),
                 'media' => $post->getMedia() ? json_decode($post->getMedia()) : [],
+                'censored' => $post->isCensored(),
                 'author' => [
                     'id' => $user->getId(),
                     'name' => $user->getName(),
