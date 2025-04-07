@@ -52,7 +52,7 @@ export interface Post {
         username: string;
         avatar: string;
         banned: boolean;
-        lecture: boolean;
+        lecture?: boolean;
     };
     likes_count: number;
     liked_by: number[];
@@ -60,6 +60,8 @@ export interface Post {
     reposts?: number;
     replies?: number;
     comments?: PostInteraction[];
+    retweetContent?: string;
+    retweetMedia?: string;
 }
 
 export interface PostsResponse {
@@ -712,6 +714,46 @@ export const DataRequests = {
         }
     },
 
+    async editComment(commentId: number, content: string): Promise<PostInteraction> {
+        try {
+            const response = await AuthService.authenticatedFetch(`/posts/comments/${commentId}/edit`, {
+                method: 'POST',
+                body: JSON.stringify({ content })
+            });
+            if (response.status === 403) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Vous n\'êtes pas autorisé à modifier ce commentaire');
+            }
+            else if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Erreur lors de la modification du commentaire');
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('Erreur lors de la modification du commentaire:', error);
+            throw error;
+        }
+    },
+
+    async deleteComment(commentId: number): Promise<void> {
+        try {
+            const response = await AuthService.authenticatedFetch(`/posts/comments/${commentId}/delete`, {
+                method: 'DELETE'
+            });
+            if (response.status === 403) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Vous n\'êtes pas autorisé à supprimer ce commentaire');
+            }
+            else if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Erreur lors de la suppression du commentaire');
+            }
+        } catch (error) {
+            console.error('Erreur lors de la suppression du commentaire:', error);
+            throw error;
+        }
+    },
+
     async bannedUser(userId: number, bannedUserId: number, isBanned: boolean): Promise<void> {
         const response = await AuthService.authenticatedFetch(`/users/${bannedUserId}/ban`, {
             method: 'POST',
@@ -846,5 +888,26 @@ export const DataRequests = {
         }
 
         return response.json();
+    },
+
+    async editRetweet(retweetId: number, content: string): Promise<Post> {
+        try {
+            const response = await AuthService.authenticatedFetch(`/posts/${retweetId}/edit`, {
+                method: 'POST',
+                body: JSON.stringify({ content })
+            });
+            if (response.status === 403) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Vous n\'êtes pas autorisé à modifier ce retweet');
+            }
+            else if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Erreur lors de la modification du retweet');
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('Erreur lors de la modification du retweet:', error);
+            throw error;
+        }
     },
 }; 

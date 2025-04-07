@@ -12,7 +12,7 @@ const navItems = [
   // { icon: "explore", label: "Explorer", path: "/explore" },
   // { icon: "notifications", label: "Notifications", path: "/notifications" },
   // { icon: "messages", label: "Messages", path: "/messages" },
-  { icon: 'profile', label: "Profil", path: "/profile" },
+  { icon: 'profile', label: "Profil", path: "/profile/" + AuthService.getUsername() },
   { icon: "settings", label: "Paramètres", path: "/settings" },
   // { icon: "more", label: "Plus", path: "/more" }
 ];

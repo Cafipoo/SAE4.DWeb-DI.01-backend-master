@@ -77,7 +77,6 @@ class AuthService {
 
     static async admin(email: string, password: string): Promise<AuthResponse> {
         this.clearAuthData();
-
         const response = await this.authenticatedFetch('/admin', {
             method: 'POST',
             body: JSON.stringify({ email, password }),

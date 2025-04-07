@@ -7,6 +7,8 @@ import DeleteModal from './DeleteModal';
 import EditTweetModal from './EditTweetModal';
 import MediaViewer from './MediaViewer';
 import RetweetModal from './RetweetModal';
+import EditCommentModal from './EditCommentModal';
+import EditRetweetModal from './EditRetweetModal';
 
 interface TweetProps {
   post: Post & {
@@ -40,6 +42,9 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, showPinButton = 
   const [likesCount, setLikesCount] = useState(post.likes_count || 0);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isEditCommentModalOpen, setIsEditCommentModalOpen] = useState(false);
+  const [isDeleteCommentModalOpen, setIsDeleteCommentModalOpen] = useState(false);
+  const [selectedComment, setSelectedComment] = useState<PostInteraction | null>(null);
   const [currentPost, setCurrentPost] = useState<Post>({
     ...post,
     comments: Array.isArray(post.comments) ? post.comments : 
@@ -53,6 +58,7 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, showPinButton = 
   const [error, setError] = useState<string | null>(null);
   const [isRetweetModalOpen, setIsRetweetModalOpen] = useState(false);
   const [isRetweeting, setIsRetweeting] = useState(false);
+  const [isEditRetweetModalOpen, setIsEditRetweetModalOpen] = useState(false);
   
   useEffect(() => {
     if (name.id) {
@@ -159,6 +165,41 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, showPinButton = 
       console.error('Erreur lors du retweet:', error);
     } finally {
       setIsRetweeting(false);
+    }
+  };
+
+  const handleEditComment = async (commentId: number, newContent: string) => {
+    try {
+      setError(null);
+      if (!currentPost.comments) return;
+      
+      const response = await DataRequests.editComment(commentId, newContent);
+      const updatedComments = currentPost.comments.map((comment: PostInteraction) => 
+        comment.id === commentId ? response : comment
+      );
+      setCurrentPost({ ...currentPost, comments: updatedComments });
+      setIsEditCommentModalOpen(false);
+    } catch (error) {
+      console.error('Erreur lors de l\'édition du commentaire:', error);
+      setError(error instanceof Error ? error.message : 'Une erreur est survenue lors de l\'édition du commentaire');
+    }
+  };
+
+  const handleDeleteComment = async (commentId: number) => {
+    try {
+      setError(null);
+      if (!currentPost.comments) return;
+      
+      await DataRequests.deleteComment(commentId);
+      // Mettre à jour les commentaires en filtrant celui qui a été supprimé
+      const updatedComments = currentPost.comments.filter((comment: PostInteraction) => 
+        comment.id !== commentId
+      );
+      setCurrentPost({ ...currentPost, comments: updatedComments });
+      setIsDeleteCommentModalOpen(false);
+    } catch (error) {
+      console.error('Erreur lors de la suppression du commentaire:', error);
+      setError(error instanceof Error ? error.message : 'Une erreur est survenue lors de la suppression du commentaire');
     }
   };
 
@@ -411,7 +452,7 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, showPinButton = 
                   {Array.isArray(currentPost.comments) && currentPost.comments.map((comment) => (
                     <div key={comment.id} className="flex gap-3">
                       <img
-                        src={comment.user.avatar || '/default-avatar.png'}
+                        src={`http://localhost:8080/uploads/avatar/${comment.user.avatar}`}
                         alt={comment.user.name}
                         className="w-8 h-8 rounded-full text-white"
                       />
@@ -423,6 +464,30 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, showPinButton = 
                           <span className="text-secondary">
                             {comment.created_at ? new Date(comment.created_at).toLocaleDateString() : ''}
                           </span>
+                          {name.username === comment.user.username && (
+                            <>
+                              <Button 
+                                variant="default" 
+                                size="sm" 
+                                onClick={() => {
+                                  setSelectedComment(comment);
+                                  setIsEditCommentModalOpen(true);
+                                }}
+                              >
+                                <Icon name="edit" />
+                              </Button>
+                              <Button 
+                                variant="default" 
+                                size="sm" 
+                                onClick={() => {
+                                  setSelectedComment(comment);
+                                  setIsDeleteCommentModalOpen(true);
+                                }}
+                              >
+                                <Icon name="delete" />
+                              </Button>
+                            </>
+                          )}
                         </div>
                         <p className="mt-1 text-white">{comment.comments}</p>
                       </div>
@@ -476,12 +541,23 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, showPinButton = 
             onConfirm={handleDelete}
           />
           
-          <EditTweetModal
-            isOpen={isEditModalOpen}
-            onClose={() => setIsEditModalOpen(false)}
-            post={currentPost}
-            onEditSuccess={handleEditSuccess}
-          />
+          {isEditModalOpen && (
+            currentPost.retweet ? (
+              <EditRetweetModal
+                isOpen={isEditModalOpen}
+                onClose={() => setIsEditModalOpen(false)}
+                retweet={currentPost}
+                onEditSuccess={handleEditSuccess}
+              />
+            ) : (
+              <EditTweetModal
+                isOpen={isEditModalOpen}
+                onClose={() => setIsEditModalOpen(false)}
+                post={currentPost}
+                onEditSuccess={handleEditSuccess}
+              />
+            )
+          )}
 
           <MediaViewer
             isOpen={isMediaViewerOpen}
@@ -497,6 +573,35 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, showPinButton = 
             postContent={currentPost.content}
             authorName={author.name}
             authorUsername={author.username}
+          />
+
+          {selectedComment && (
+            <EditCommentModal
+              isOpen={isEditCommentModalOpen}
+              onClose={() => {
+                setIsEditCommentModalOpen(false);
+                setSelectedComment(null);
+              }}
+              comment={selectedComment}
+              onEditSuccess={(editedComment) => {
+                if (selectedComment && editedComment.comments) {
+                  handleEditComment(selectedComment.id, editedComment.comments);
+                }
+              }}
+            />
+          )}
+
+          <DeleteModal
+            isOpen={isDeleteCommentModalOpen}
+            onClose={() => {
+              setIsDeleteCommentModalOpen(false);
+              setSelectedComment(null);
+            }}
+            onConfirm={() => {
+              if (selectedComment) {
+                handleDeleteComment(selectedComment.id);
+              }
+            }}
           />
         </>
       )}

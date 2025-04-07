@@ -22,6 +22,14 @@ const Profile = () => {
   const [activeTab, setActiveTab] = useState<'posts' | 'banned'>('posts');
   const [pinnedPost, setPinnedPost] = useState<Post | null>(null);
 
+  // Réinitialiser les posts et la pagination lorsque le username change
+  useEffect(() => {
+    setPosts([]);
+    setCurrentPage(1);
+    setHasMore(true);
+    setPinnedPost(null);
+  }, [username]);
+
   // Fonction pour ajouter un nouveau tweet
   const addNewTweet = useCallback((newTweet: Post) => {
     const currentUser = AuthService.getUsername();
@@ -162,21 +170,22 @@ const Profile = () => {
         setLoadingMore(true);
         const response = await DataRequests.getUserPosts(user.id, currentPage);
         
-        // Si c'est un nouveau tweet et que ce n'est pas le profil de l'utilisateur actuel,
-        // on ne l'ajoute pas
-        setPosts(prevPosts => {
-          const newPosts = response.posts.filter(newPost => 
-            !prevPosts.some(existingPost => existingPost.id === newPost.id)
-          );
-          return currentPage === 1 ? response.posts : [...prevPosts, ...newPosts];
-        });
+        // Réinitialiser les posts si c'est la première page
+        if (currentPage === 1) {
+          setPosts(response.posts);
+          // Réinitialiser le tweet épinglé à chaque fois qu'on change de profil
+          setPinnedPost(response.pinned_post || null);
+        } else {
+          // Ajouter les nouveaux posts à la liste existante
+          setPosts(prevPosts => {
+            const newPosts = response.posts.filter(newPost => 
+              !prevPosts.some(existingPost => existingPost.id === newPost.id)
+            );
+            return [...prevPosts, ...newPosts];
+          });
+        }
         
         setHasMore(response.hasMore);
-        
-        // Mettre à jour le post épinglé s'il existe
-        if (response.pinned_post) {
-          setPinnedPost(response.pinned_post);
-        }
       } catch (err) {
         console.error('Erreur lors du chargement des posts:', err);
       } finally {

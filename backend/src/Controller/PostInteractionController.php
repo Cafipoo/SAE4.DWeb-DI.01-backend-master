@@ -189,4 +189,55 @@ class PostInteractionController extends AbstractController
             ]
         ]);
     }
+
+    #[Route('/posts/comments/{id}/edit', name: 'edit_comment', methods: ['POST'])]
+    public function editComment(
+        PostInteraction $comment,
+        Request $request,
+        EntityManagerInterface $entityManager
+    ): JsonResponse {
+        $data = json_decode($request->getContent(), true);
+        $newContent = $data['content'] ?? null;
+
+        if (!$newContent) {
+            return new JsonResponse(['error' => 'Contenu du commentaire manquant'], 400);
+        }
+
+        $user = $this->getUser();
+        if (!$user || $user->getId() !== $comment->getIdUser()->getId()) {
+            return new JsonResponse(['error' => 'Vous n\'êtes pas autorisé à modifier ce commentaire'], 403);
+        }
+
+        $comment->setComments($newContent);
+        $entityManager->flush();
+
+        return new JsonResponse([
+            'id' => $comment->getId(),
+            'comments' => $comment->getComments(),
+            'created_at' => $comment->getCreatedAt()->format('Y-m-d H:i:s'),
+            'user' => [
+                'id' => $user->getId(),
+                'name' => $user->getName(),
+                'username' => $user->getUsername(),
+                'avatar' => $user->getAvatar()
+            ]
+        ]);
+    }
+
+    #[Route('/posts/comments/{id}/delete', name: 'delete_comment', methods: ['DELETE'])]
+    public function deleteComment(
+        PostInteraction $comment,
+        EntityManagerInterface $entityManager
+    ): JsonResponse {
+        $user = $this->getUser();
+        if (!$user || $user->getId() !== $comment->getIdUser()->getId()) {
+            return new JsonResponse(['error' => 'Vous n\'êtes pas autorisé à supprimer ce commentaire'], 403);
+        }
+
+        // Au lieu de supprimer l'interaction, on efface juste le commentaire
+        $comment->setComments(null);
+        $entityManager->flush();
+
+        return new JsonResponse(['success' => true]);
+    }
 } 

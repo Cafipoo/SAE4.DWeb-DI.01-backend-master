@@ -24,7 +24,6 @@ function App() {
       <Route path="/reset-password/new" element={<ResetPassword />} />
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/profile/:username" element={<Profile />} />
-      <Route path="/profile" element={<Profile />} />
       <Route path="/settings" element={<Setting />} />
       <Route path="/admin" element={<AdminLogin />} />
       <Route path="/backoffice" element={<Backoffice />} />

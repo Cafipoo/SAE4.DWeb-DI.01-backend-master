@@ -417,19 +417,8 @@ class PostController extends AbstractController
                 $originalPost = $postRepository->find($post->getRetweet());
                 
                 // Supprimer le retweet normalement
-                if ($post->getMedia()) {
-                    $mediaUrls = json_decode($post->getMedia(), true);
-                    if (is_array($mediaUrls)) {
-                        $uploadDir = $this->getParameter('uploads_directory') . '/posts';
-                        foreach ($mediaUrls as $imageUrl) {
-                            $filePath = $uploadDir . '/' . $imageUrl;
-                            if (file_exists($filePath)) {
-                                unlink($filePath);
-                            }
-                        }
-                    }
-                }
-
+                // On ne supprime pas les médias car ils appartiennent au post original
+                
                 // Supprimer les interactions du retweet
                 $interactions = $postInteractionRepository->findBy(['post' => $post]);
                 foreach ($interactions as $interaction) {

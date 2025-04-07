@@ -77,23 +77,14 @@ export default function EditTweetModal({ isOpen, onClose, post, onEditSuccess }:
     if (isExisting) {
       // Pour les médias existants, on les retire de la liste à conserver
       setExistingMediaToKeep(prev => prev.filter(i => i !== index));
-      
-      // On retire aussi l'URL de prévisualisation
-      setImagePreviewUrls(prev => {
-        const newUrls = [...prev];
-        newUrls.splice(index, 1);
-        return newUrls;
-      });
     } else {
-      // Pour les nouvelles images
-      const adjustedIndex = index - (post.media?.length || 0) + existingMediaToKeep.length;
-      setSelectedImages(prev => prev.filter((_, i) => i !== adjustedIndex));
-      
-      // On retire aussi l'URL de prévisualisation
+      // Pour les nouvelles images, on ajuste l'index en fonction des médias existants
+      const newImageIndex = index - (post.media?.length || 0);
+      setSelectedImages(prev => prev.filter((_, i) => i !== newImageIndex));
       setImagePreviewUrls(prev => {
         const newUrls = [...prev];
+        URL.revokeObjectURL(newUrls[index]); // Libérer la mémoire
         newUrls.splice(index, 1);
-        URL.revokeObjectURL(prev[index]); // Libérer la mémoire
         return newUrls;
       });
     }
