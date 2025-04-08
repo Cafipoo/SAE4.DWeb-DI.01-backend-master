@@ -15,21 +15,25 @@ use Symfony\Component\HttpFoundation\File\UploadedFile;
 use App\Repository\UserInteractionRepository;
 use App\Entity\UserInteraction;
 use App\Repository\PendingRepository;
+use App\Repository\PostInteractionRepository;
 
 class UserController extends AbstractController
 {
     private UserRepository $userRepository;
     private UserInteractionRepository $userInteractionRepository;
     private EntityManagerInterface $entityManager;
+    private PostInteractionRepository $postInteractionRepository;
 
     public function __construct(
         UserRepository $userRepository,
         UserInteractionRepository $userInteractionRepository,
-        EntityManagerInterface $entityManager
+        EntityManagerInterface $entityManager,
+        PostInteractionRepository $postInteractionRepository
     ) {
         $this->userRepository = $userRepository;
         $this->userInteractionRepository = $userInteractionRepository;
         $this->entityManager = $entityManager;
+        $this->postInteractionRepository = $postInteractionRepository;
     }
 
     #[Route('/users', name: 'users.index', methods: ['GET'])]
@@ -85,14 +89,31 @@ class UserController extends AbstractController
     
 
     #[Route('/user/{id}', name: 'user.show', methods: ['GET'])]
-    public function show(Request $request, UserRepository $userRepository, PostRepository $postRepository, int $id): JsonResponse
+    public function show(Request $request, UserRepository $userRepository, PostRepository $postRepository, PostInteractionRepository $postInteractionRepository, UserInteractionRepository $userInteractionRepository, int $id): JsonResponse
     {
         $user = $userRepository->find($id);
         if (!$user) {
             return $this->json(['error' => 'User not found'], Response::HTTP_NOT_FOUND);
         }
 
-        $posts = $postRepository->findBy(['user' => $user], ['created_at' => 'DESC']);
+        // Récupérer l'utilisateur connecté pour vérifier les follows
+        $currentUserId = $request->query->getInt('currentUserId', 0);
+        $currentUser = $currentUserId ? $userRepository->find($currentUserId) : null;
+
+        // Récupérer les posts de l'utilisateur avec pagination
+        $postsPerPage = 5;
+        $page = max(1, $request->query->getInt('page', 1));
+        $offset = ($page - 1) * $postsPerPage;
+
+        $posts = $postRepository->findBy(
+            ['user' => $user],
+            ['created_at' => 'DESC'],
+            $postsPerPage,
+            $offset
+        );
+
+        $totalPosts = $postRepository->count(['user' => $user]);
+        $maxPages = ceil($totalPosts / $postsPerPage);
 
         $userData = [
             'id' => $user->getId(),
@@ -103,13 +124,118 @@ class UserController extends AbstractController
             'avatar' => $user->getAvatar(),
             'cover' => $user->getCover(),
             'bio' => $user->getBio(),
-            'posts' => array_map(function($post) {
-                return [
+            'location' => $user->getLocation(),
+            'siteWeb' => $user->getSiteWeb(),
+            'banned' => $user->isBanned(),
+            'lecture' => $user->isLecture(),
+            'privateMode' => $user->isPrivate(),
+            'isLimited' => $user->isLimited(),
+            'followers_count' => $userInteractionRepository->count(['secondUser' => $user, 'followed' => true]),
+            'following_count' => $userInteractionRepository->count(['user' => $user, 'followed' => true]),
+            'posts' => array_map(function($post) use ($postInteractionRepository, $userInteractionRepository, $currentUser) {
+                // Récupérer les likes pour ce post
+                $likes = $postInteractionRepository->findBy([
+                    'post' => $post,
+                    'likes' => true
+                ]);
+                
+                $likedByIds = array_map(function($interaction) {
+                    return $interaction->getIdUser()->getId();
+                }, $likes);
+
+                // Récupérer les commentaires pour ce post
+                $comments = $postInteractionRepository->findBy([
+                    'post' => $post,
+                    'comments' => ['IS NOT NULL']
+                ]);
+
+                $commentsData = array_map(function($interaction) {
+                    return [
+                        'id' => $interaction->getId(),
+                        'comments' => $interaction->getComments(),
+                        'created_at' => $interaction->getCreatedAt() ? $interaction->getCreatedAt()->format('Y-m-d H:i:s') : null,
+                        'user' => [
+                            'id' => $interaction->getIdUser()->getId(),
+                            'name' => $interaction->getIdUser()->getName(),
+                            'username' => $interaction->getIdUser()->getUsername(),
+                            'avatar' => $interaction->getIdUser()->getAvatar()
+                        ]
+                    ];
+                }, $comments);
+
+                // Vérifier si l'utilisateur actuel suit l'auteur du post
+                $isFollowed = false;
+                if ($currentUser) {
+                    $isFollowed = $userInteractionRepository->findOneBy([
+                        'user' => $currentUser,
+                        'secondUser' => $post->getUser(),
+                        'followed' => true
+                    ]) !== null;
+                }
+
+                // Compter le nombre de retweets
+                $retweetCount = $postRepository->count(['retweet' => $post->getId()]);
+
+                $postData = [
                     'id' => $post->getId(),
                     'content' => $post->getContent(),
-                    'created_at' => $post->getCreatedAt()->format('Y-m-d H:i:s')
+                    'created_at' => $post->getCreatedAt()->format('Y-m-d H:i:s'),
+                    'media' => $post->getMedia() ? json_decode($post->getMedia()) : [],
+                    'isLocked' => $post->isLocked(),
+                    'censored' => $post->isCensored(),
+                    'reposts' => $retweetCount,
+                    'retweet' => $post->getRetweet(),
+                    'likes_count' => count($likes),
+                    'liked_by' => $likedByIds,
+                    'comments' => $commentsData,
+                    'replies' => count($comments),
+                    'author' => [
+                        'id' => $post->getUser()->getId(),
+                        'name' => $post->getUser()->getName(),
+                        'username' => $post->getUser()->getUsername(),
+                        'avatar' => $post->getUser()->getAvatar(),
+                        'banned' => $post->getUser()->isBanned(),
+                        'lecture' => $post->getUser()->isLecture(),
+                        'privateMode' => $post->getUser()->isPrivate(),
+                        'isLimited' => $post->getUser()->isLimited(),
+                        'isFollowed' => $isFollowed
+                    ]
                 ];
-            }, $posts)
+
+                // Si c'est un retweet, ajouter les informations du post original
+                if ($post->getRetweet()) {
+                    $originalPost = $postRepository->find($post->getRetweet());
+                    if ($originalPost) {
+                        $originalPostUser = $originalPost->getUser();
+                        $postData['original_post'] = [
+                            'id' => $originalPost->getId(),
+                            'content' => $post->getRetweetContent() ?? $originalPost->getContent(),
+                            'created_at' => $originalPost->getCreatedAt()->format('Y-m-d H:i:s'),
+                            'media' => $post->getRetweetMedia() ? json_decode($post->getRetweetMedia()) : ($originalPost->getMedia() ? json_decode($originalPost->getMedia()) : []),
+                            'author' => [
+                                'id' => $originalPostUser->getId(),
+                                'name' => $originalPostUser->getName(),
+                                'username' => $originalPostUser->getUsername(),
+                                'avatar' => $originalPostUser->getAvatar(),
+                                'banned' => $originalPostUser->isBanned(),
+                                'lecture' => $originalPostUser->isLecture(),
+                                'privateMode' => $originalPostUser->isPrivate(),
+                                'isLimited' => $originalPostUser->isLimited()
+                            ]
+                        ];
+                    }
+                }
+
+                return $postData;
+            }, $posts),
+            'pagination' => [
+                'current_page' => $page,
+                'max_pages' => $maxPages,
+                'total_posts' => $totalPosts,
+                'posts_per_page' => $postsPerPage,
+                'previous_page' => ($page > 1) ? $page - 1 : null,
+                'next_page' => ($page < $maxPages) ? $page + 1 : null
+            ]
         ];
 
         return $this->json($userData);
@@ -178,7 +304,7 @@ class UserController extends AbstractController
                     'id' => $post->getId(),
                     'content' => $post->getContent(),
                     'created_at' => $post->getCreatedAt()->format('Y-m-d H:i:s'),
-                    'isLocked' => $post->isLocked()
+                    'isLocked' => $post->isLocked(),
                 ];
             }, $posts)
         ]);
@@ -316,15 +442,25 @@ class UserController extends AbstractController
     }
 
     #[Route('/user/{id}/posts', name: 'user.posts', methods: ['GET'])]
-    public function getUserPosts(Request $request, UserRepository $userRepository, PostRepository $postRepository, int $id): JsonResponse
-    {
+    public function getUserPosts(
+        Request $request, 
+        UserRepository $userRepository, 
+        PostRepository $postRepository, 
+        PostInteractionRepository $postInteractionRepository,
+        UserInteractionRepository $userInteractionRepository,
+        int $id
+    ): JsonResponse {
         $user = $userRepository->find($id);
         if (!$user) {
             return $this->json(['error' => 'User not found'], Response::HTTP_NOT_FOUND);
         }
 
+        // Récupérer l'utilisateur connecté pour vérifier les follows
+        $currentUserId = $request->query->getInt('currentUserId', 0);
+        $currentUser = $currentUserId ? $userRepository->find($currentUserId) : null;
+
         $page = max(1, $request->query->getInt('page', 1));
-        $limit = 1; // nombre de posts par page
+        $limit = 10; // nombre de posts par page
         $offset = ($page - 1) * $limit;
 
         $posts = $postRepository->findBy(
@@ -334,33 +470,217 @@ class UserController extends AbstractController
             $offset
         );
 
-        $postsData = array_map(function($post) {
-            return [
+        // Filtrer les posts supprimés et réindexer le tableau
+        $posts = array_values(array_filter($posts, function($post) {
+            return !$post->isDeleted();
+        }));
+
+        // Récupérer le post épinglé par l'utilisateur (s'il n'est pas supprimé)
+        $pinnedPost = $user->getPin();
+        if ($pinnedPost && $pinnedPost->isDeleted()) {
+            $pinnedPost = null;
+        }
+
+        $postsData = array_map(function($post) use ($postInteractionRepository, $userInteractionRepository, $currentUser, $postRepository) {
+            $user = $post->getUser();
+            
+            // Récupérer les likes pour ce post
+            $likes = $postInteractionRepository->findBy([
+                'post' => $post,
+                'likes' => true
+            ]);
+            
+            $likedByIds = array_map(function($interaction) {
+                return $interaction->getIdUser()->getId();
+            }, $likes);
+
+            // Récupérer les commentaires pour ce post
+            $comments = $postInteractionRepository->findBy([
+                'post' => $post,
+                'comments' => ['IS NOT NULL']
+            ]);
+
+            $commentsData = array_map(function($interaction) {
+                return [
+                    'id' => $interaction->getId(),
+                    'comments' => $interaction->getComments(),
+                    'created_at' => $interaction->getCreatedAt() ? $interaction->getCreatedAt()->format('Y-m-d H:i:s') : null,
+                    'user' => [
+                        'id' => $interaction->getIdUser()->getId(),
+                        'name' => $interaction->getIdUser()->getName(),
+                        'username' => $interaction->getIdUser()->getUsername(),
+                        'avatar' => $interaction->getIdUser()->getAvatar()
+                    ]
+                ];
+            }, $comments);
+
+            // Vérifier si l'utilisateur actuel suit l'auteur du post
+            $isFollowed = false;
+            if ($currentUser) {
+                $isFollowed = $userInteractionRepository->findOneBy([
+                    'user' => $currentUser,
+                    'secondUser' => $user,
+                    'followed' => true
+                ]) !== null;
+            }
+
+            // Compter le nombre de retweets
+            $retweetCount = $postRepository->count(['retweet' => $post->getId()]);
+
+            $postData = [
                 'id' => $post->getId(),
                 'content' => $post->getContent(),
                 'media' => $post->getMedia() ? json_decode($post->getMedia()) : [],
                 'created_at' => $post->getCreatedAt()->format('Y-m-d H:i:s'),
-                'censored' => $post->isCensored()
+                'censored' => $post->isCensored(),
+                'isLocked' => $post->isLocked(),
+                'author' => [
+                    'id' => $user->getId(),
+                    'name' => $user->getName(),
+                    'username' => $user->getUsername(),
+                    'avatar' => $user->getAvatar(),
+                    'banned' => $user->isBanned(),
+                    'lecture' => $user->isLecture(),
+                    'privateMode' => $user->isPrivate(),
+                    'isLimited' => $user->isLimited(),
+                    'isFollowed' => $isFollowed
+                ],
+                'likes_count' => count($likes),
+                'liked_by' => $likedByIds,
+                'reposts' => $retweetCount,
+                'replies' => count($comments),
+                'comments' => $commentsData,
+                'retweet' => $post->getRetweet()
             ];
+
+            // Si c'est un retweet, ajouter les informations du post original
+            if ($post->getRetweet()) {
+                $originalPost = $postRepository->find($post->getRetweet());
+                if ($originalPost) {
+                    $originalPostUser = $originalPost->getUser();
+                    $postData['original_post'] = [
+                        'id' => $originalPost->getId(),
+                        'content' => $post->getRetweetContent() ?? $originalPost->getContent(),
+                        'created_at' => $originalPost->getCreatedAt()->format('Y-m-d H:i:s'),
+                        'media' => $post->getRetweetMedia() ? json_decode($post->getRetweetMedia()) : ($originalPost->getMedia() ? json_decode($originalPost->getMedia()) : []),
+                        'author' => [
+                            'id' => $originalPostUser->getId(),
+                            'name' => $originalPostUser->getName(),
+                            'username' => $originalPostUser->getUsername(),
+                            'avatar' => $originalPostUser->getAvatar(),
+                            'banned' => $originalPostUser->isBanned(),
+                            'lecture' => $originalPostUser->isLecture(),
+                            'privateMode' => $originalPostUser->isPrivate(),
+                            'isLimited' => $originalPostUser->isLimited()
+                        ]
+                    ];
+                }
+            }
+
+            return $postData;
         }, $posts);
 
         // Récupérer le post épinglé par l'utilisateur
-        $pinnedPost = $user->getPin();
         $pinnedPostData = null;
         
         if ($pinnedPost) {
+            $pinnedUser = $pinnedPost->getUser();
+            
+            // Récupérer les likes pour le post épinglé
+            $pinnedLikes = $postInteractionRepository->findBy([
+                'post' => $pinnedPost,
+                'likes' => true
+            ]);
+            
+            $pinnedLikedByIds = array_map(function($interaction) {
+                return $interaction->getIdUser()->getId();
+            }, $pinnedLikes);
+
+            // Récupérer les commentaires pour le post épinglé
+            $pinnedComments = $postInteractionRepository->findBy([
+                'post' => $pinnedPost,
+                'comments' => ['IS NOT NULL']
+            ]);
+
+            $pinnedCommentsData = array_map(function($interaction) {
+                return [
+                    'id' => $interaction->getId(),
+                    'comments' => $interaction->getComments(),
+                    'created_at' => $interaction->getCreatedAt() ? $interaction->getCreatedAt()->format('Y-m-d H:i:s') : null,
+                    'user' => [
+                        'id' => $interaction->getIdUser()->getId(),
+                        'name' => $interaction->getIdUser()->getName(),
+                        'username' => $interaction->getIdUser()->getUsername(),
+                        'avatar' => $interaction->getIdUser()->getAvatar()
+                    ]
+                ];
+            }, $pinnedComments);
+
+            // Vérifier si l'utilisateur actuel suit l'auteur du post épinglé
+            $isPinnedFollowed = false;
+            if ($currentUser) {
+                $isPinnedFollowed = $userInteractionRepository->findOneBy([
+                    'user' => $currentUser,
+                    'secondUser' => $pinnedUser,
+                    'followed' => true
+                ]) !== null;
+            }
+
             $pinnedPostData = [
                 'id' => $pinnedPost->getId(),
                 'content' => $pinnedPost->getContent(),
                 'media' => $pinnedPost->getMedia() ? json_decode($pinnedPost->getMedia()) : [],
                 'created_at' => $pinnedPost->getCreatedAt()->format('Y-m-d H:i:s'),
-                'censored' => $pinnedPost->isCensored()
+                'censored' => $pinnedPost->isCensored(),
+                'isLocked' => $pinnedPost->isLocked(),
+                'author' => [
+                    'id' => $pinnedUser->getId(),
+                    'name' => $pinnedUser->getName(),
+                    'username' => $pinnedUser->getUsername(),
+                    'avatar' => $pinnedUser->getAvatar(),
+                    'banned' => $pinnedUser->isBanned(),
+                    'lecture' => $pinnedUser->isLecture(),
+                    'privateMode' => $pinnedUser->isPrivate(),
+                    'isLimited' => $pinnedUser->isLimited(),
+                    'isFollowed' => $isPinnedFollowed
+                ],
+                'likes_count' => count($pinnedLikes),
+                'liked_by' => $pinnedLikedByIds,
+                'reposts' => $postRepository->count(['retweet' => $pinnedPost->getId()]),
+                'replies' => count($pinnedComments),
+                'comments' => $pinnedCommentsData,
+                'retweet' => $pinnedPost->getRetweet()
             ];
+
+            // Si le post épinglé est un retweet, ajouter les informations du post original
+            if ($pinnedPost->getRetweet()) {
+                $originalPinnedPost = $postRepository->find($pinnedPost->getRetweet());
+                if ($originalPinnedPost) {
+                    $originalPinnedPostUser = $originalPinnedPost->getUser();
+                    $pinnedPostData['original_post'] = [
+                        'id' => $originalPinnedPost->getId(),
+                        'content' => $pinnedPost->getRetweetContent() ?? $originalPinnedPost->getContent(),
+                        'created_at' => $originalPinnedPost->getCreatedAt()->format('Y-m-d H:i:s'),
+                        'media' => $pinnedPost->getRetweetMedia() ? json_decode($pinnedPost->getRetweetMedia()) : ($originalPinnedPost->getMedia() ? json_decode($originalPinnedPost->getMedia()) : []),
+                        'author' => [
+                            'id' => $originalPinnedPostUser->getId(),
+                            'name' => $originalPinnedPostUser->getName(),
+                            'username' => $originalPinnedPostUser->getUsername(),
+                            'avatar' => $originalPinnedPostUser->getAvatar(),
+                            'banned' => $originalPinnedPostUser->isBanned(),
+                            'lecture' => $originalPinnedPostUser->isLecture(),
+                            'privateMode' => $originalPinnedPostUser->isPrivate(),
+                            'isLimited' => $originalPinnedPostUser->isLimited()
+                        ]
+                    ];
+                }
+            }
         }
 
         return $this->json([
             'posts' => $postsData,
-            'pinned_post' => $pinnedPostData
+            'pinned_post' => $pinnedPostData,
+            'hasMore' => count($posts) === $limit
         ]);
     }
 

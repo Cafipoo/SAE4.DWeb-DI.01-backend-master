@@ -289,17 +289,7 @@ const Profile = () => {
                           post={{
                             ...pinnedPost,
                             isPinned: true,
-                            reposts: 0,
-                            replies: 0,
-                            isFollowed: followedUsers.includes(user.id),
-                            author: {
-                              id: user.id,
-                              name: user.name,
-                              username: user.username,
-                              avatar: user.avatar || '',
-                              banned: user.banned || false,
-                              lecture: false
-                            }
+                            isFollowed: followedUsers.includes(pinnedPost.author.id)
                           }}
                           onDelete={handleDeleteTweet}
                           onFollowUpdate={handleFollowUpdate}
@@ -320,18 +310,8 @@ const Profile = () => {
                           <Tweet
                             post={{
                               ...post,
-                              reposts: 0,
-                              replies: 0,
-                              isFollowed: followedUsers.includes(user.id),
-                              isPinned: post.id === pinnedPost?.id,
-                              author: {
-                                id: user.id,
-                                name: user.name,
-                                username: user.username,
-                                avatar: user.avatar || '',
-                                banned: user.banned || false,
-                                lecture: false
-                              }
+                              isFollowed: followedUsers.includes(post.author.id),
+                              isPinned: post.id === pinnedPost?.id
                             }}
                             onDelete={handleDeleteTweet}
                             onFollowUpdate={handleFollowUpdate}
