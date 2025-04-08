@@ -32,12 +32,13 @@ interface TweetProps {
   onFollowUpdate?: (userId: number, isFollowed: boolean) => void;
   onEdit?: (editedPost: Post) => void;
   onPin?: (postId: number) => void;
+  onUnpin?: (postId: number) => void;
   showPinButton?: boolean;
   onHashtagClick?: (hashtag: string) => void;
   onRetweet?: (postId: number, comment?: string) => void;
 }
 
-const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, showPinButton = false, onHashtagClick, onRetweet }: TweetProps) => {
+const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, onUnpin, showPinButton = false, onHashtagClick, onRetweet }: TweetProps) => {
   let name = localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")!) : null;
   const [isLiked, setIsLiked] = useState(false);
   const [isFollowed, setIsFollowed] = useState(post.isFollowed || false);
@@ -205,6 +206,21 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, showPinButton = 
     }
   };
 
+  const handleLockUnlock = async () => {
+    try {
+      if (currentPost.isLocked) {
+        await DataRequests.unlockPost(currentPost.id);
+        setCurrentPost(prev => ({ ...prev, isLocked: false }));
+      } else {
+        await DataRequests.lockPost(currentPost.id);
+        setCurrentPost(prev => ({ ...prev, isLocked: true }));
+      }
+    } catch (error) {
+      console.error('Erreur lors du verrouillage/déverrouillage du post:', error);
+      // Vous pouvez ajouter une notification d'erreur ici si vous le souhaitez
+    }
+  };
+
   // Valeurs par défaut pour les données manquantes
   const defaultAuthor = {
     name: "Utilisateur",
@@ -312,6 +328,25 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, showPinButton = 
                       >
                         <Icon name="delete" />
                       </Button>
+                      {currentPost.isLocked ? (
+                        <Button 
+                          variant="default" 
+                          size="sm" 
+                          onClick={handleLockUnlock}
+                          title="Déverrouiller le post"
+                        >
+                          <Icon name="lock" />
+                        </Button>
+                      ) : (
+                        <Button 
+                          variant="default" 
+                          size="sm" 
+                          onClick={handleLockUnlock}
+                          title="Verrouiller le post"
+                        >
+                          <Icon name="unlock" />
+                        </Button>
+                      )}
                     </div>
                   ) : (
                     null
@@ -426,7 +461,7 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, showPinButton = 
                 )}
                 {(!author.lecture && (!author.privateMode || post.isFollowed || name.id === post.author.id)) && (
                   <div className="flex justify-between text-gray-500 max-w-md">
-                    {author.isLimited && !post.isFollowed ? (
+                    {author.isLimited && !post.isFollowed && name.id !== post.author.id || !currentPost.isLocked ? (
                       <Button 
                         className="bg-transparent flex items-center gap-2 hover:text-blue-500 transition-colors"
                         onClick={() => null}

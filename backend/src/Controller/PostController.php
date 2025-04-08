@@ -110,6 +110,7 @@ class PostController extends AbstractController
                         'created_at' => $originalPost->getCreatedAt()->format('Y-m-d H:i:s'),
                         'media' => $post->getRetweetMedia() ? json_decode($post->getRetweetMedia()) : ($originalPost->getMedia() ? json_decode($originalPost->getMedia()) : []),
                         'censored' => $originalPost->isCensored(),
+                        'isLocked' => $originalPost->isLocked(),
                         'reposts' => $postRepository->count(['retweet' => $originalPost->getId()]),
                         'author' => [
                             'id' => $originalPostUser->getId(),
@@ -132,6 +133,7 @@ class PostController extends AbstractController
                 'isLimited' => $user->isLimited(),
                 'reposts' => $retweetCount,
                 'retweet' => $post->getRetweet(),
+                'isLocked' => $post->isLocked(),
                 'original_post' => $originalPost,
                 'author' => [
                     'id' => $user->getId(),
@@ -290,7 +292,9 @@ class PostController extends AbstractController
                     'avatar' => $user->getAvatar(),
                     'email' => $user->getEmail(),
                     'banned' => $user->isBanned(),
-                    'lecture' => $user->isLecture()
+                    'lecture' => $user->isLecture(),
+                    'privateMode' => $user->isPrivate(),
+                    'isLimited' => $user->isLimited()
                 ],
                 'likes_count' => count($likes),
                 'liked_by' => $likedByIds,
@@ -431,6 +435,7 @@ class PostController extends AbstractController
                 'content' => $post->getContent(),
                 'created_at' => $post->getCreatedAt()->format('Y-m-d H:i:s'),
                 'media' => $post->getMedia() ? json_decode($post->getMedia()) : [],
+                'isLocked' => $post->isLocked(),
                 'author' => [
                     'id' => $user->getId(),
                     'name' => $user->getName(),
@@ -438,7 +443,9 @@ class PostController extends AbstractController
                     'avatar' => $user->getAvatar(),
                     'email' => $user->getEmail(),
                     'banned' => $user->isBanned(),
-                    'lecture' => $user->isLecture()
+                    'lecture' => $user->isLecture(),
+                    'privateMode' => $user->isPrivate(),
+                    'isLimited' => $user->isLimited()
                 ]
             ], Response::HTTP_CREATED);
         } catch (\Exception $e) {
@@ -1000,28 +1007,81 @@ class PostController extends AbstractController
         }
     }
 
-    // #[Route('/posts', name: 'posts_create', methods: ['POST'])]
-    // public function create(Request $request, PostRepository $postRepository): JsonResponse
-    // {
-    //     $data = json_decode($request->getContent(), true);
-    //     $post = new Post();
-    //     $post->setContent($data['content']);
-    //     $post->setCreatedAt(new \DateTime());
+    #[Route('/posts/{id}/lock', name: 'posts.lock', methods: ['POST'])]
+    public function lock(
+        int $id,
+        Request $request,
+        PostRepository $postRepository,
+        UserRepository $userRepository,
+        EntityManagerInterface $entityManager
+    ): JsonResponse {
+        try {
+            $data = json_decode($request->getContent(), true);
+            $post = $postRepository->find($id);
+            
+            if (!$post) {
+                return $this->json(['error' => 'Post non trouvé'], Response::HTTP_NOT_FOUND);
+            }
 
-    //     $postRepository->save($post, true);
+            // Vérifier si l'utilisateur est l'auteur du post
+            $currentUserId = $data['userId'] ?? null;
+            if ($currentUserId && $post->getUser()->getId() !== (int)$currentUserId) {
+                return $this->json(['error' => 'Vous n\'êtes pas autorisé à verrouiller ce post'], Response::HTTP_FORBIDDEN);
+            }
 
-    //     return $this->json($post, 201);
-    // }
+            $post->setIsLocked(true);
+            $entityManager->persist($post);
+            $entityManager->flush();
 
-    // #[Route('/posts/{id}', name: 'posts_show', methods: ['GET'])]
-    // public function show(int $id, PostRepository $postRepository): JsonResponse
-    // {
-    //     $post = $postRepository->find($id);
+            return $this->json([
+                'id' => $post->getId(),
+                'isLocked' => $post->isLocked(),
+                'message' => 'Post verrouillé avec succès'
+            ]);
+        } catch (\Exception $e) {
+            return $this->json([
+                'error' => 'Une erreur est survenue lors du verrouillage du post',
+                'message' => $e->getMessage()
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
 
-    //     if (!$post) {
-    //         return $this->json(['message' => 'Post not found'], 404);
-    //     }
+    #[Route('/posts/{id}/unlock', name: 'posts.unlock', methods: ['POST'])]
+    public function unlock(
+        int $id,
+        Request $request,
+        PostRepository $postRepository,
+        UserRepository $userRepository,
+        EntityManagerInterface $entityManager
+    ): JsonResponse {
+        try {
+            $data = json_decode($request->getContent(), true);
+            $post = $postRepository->find($id);
+            
+            if (!$post) {
+                return $this->json(['error' => 'Post non trouvé'], Response::HTTP_NOT_FOUND);
+            }
 
-    //     return $this->json($post);
-    // }
+            // Vérifier si l'utilisateur est l'auteur du post
+            $currentUserId = $data['userId'] ?? null;
+            if ($currentUserId && $post->getUser()->getId() !== (int)$currentUserId) {
+                return $this->json(['error' => 'Vous n\'êtes pas autorisé à déverrouiller ce post'], Response::HTTP_FORBIDDEN);
+            }
+
+            $post->setIsLocked(false);
+            $entityManager->persist($post);
+            $entityManager->flush();
+
+            return $this->json([
+                'id' => $post->getId(),
+                'isLocked' => $post->isLocked(),
+                'message' => 'Post déverrouillé avec succès'
+            ]);
+        } catch (\Exception $e) {
+            return $this->json([
+                'error' => 'Une erreur est survenue lors du déverrouillage du post',
+                'message' => $e->getMessage()
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
 }

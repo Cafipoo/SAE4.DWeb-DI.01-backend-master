@@ -172,11 +172,13 @@ class UserController extends AbstractController
             'following_count' => $followingCount,
             'privateMode' => $user->isPrivate(),
             'is_pending' => $isPending,
+            'isLimited' => $user->isLimited(),
             'posts' => array_map(function($post) {
                 return [
                     'id' => $post->getId(),
                     'content' => $post->getContent(),
-                    'created_at' => $post->getCreatedAt()->format('Y-m-d H:i:s')
+                    'created_at' => $post->getCreatedAt()->format('Y-m-d H:i:s'),
+                    'isLocked' => $post->isLocked()
                 ];
             }, $posts)
         ]);

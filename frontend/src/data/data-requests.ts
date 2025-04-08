@@ -39,6 +39,7 @@ export interface Post {
     media: string[];
     censored: boolean;
     retweet?: number;
+    isLocked?: boolean;
     original_post?: {
         id: number;
         content: string;
@@ -340,7 +341,7 @@ export const DataRequests = {
     //     return data;
     // },
 
-    async createPost(content: string, images: File[] = []): Promise<Post> {
+    async createPost(content: string, images: File[] = [], isLocked: boolean = false): Promise<Post> {
         const userId = AuthService.getUserId();
         if (!userId) {
             throw new Error('Utilisateur non connecté');
@@ -362,7 +363,8 @@ export const DataRequests = {
             method: 'POST',
             body: JSON.stringify({ 
                 content,
-                images: imageData
+                images: imageData,
+                isLocked
             })
         });
         if (response.status === 403) {
@@ -964,6 +966,50 @@ export const DataRequests = {
         const response = await AuthService.authenticatedFetch(`/pending/reject/${pendingId}`, {
             method: 'POST'
         });
+        return response.json();
+    },
+
+    async lockPost(postId: number): Promise<{ id: number; isLocked: boolean; message: string }> {
+        const userId = AuthService.getUserId();
+        if (!userId) {
+            throw new Error('Utilisateur non connecté');
+        }
+
+        const response = await AuthService.authenticatedFetch(`/posts/${postId}/lock`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ userId })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Erreur lors du verrouillage du post');
+        }
+
+        return response.json();
+    },
+
+    async unlockPost(postId: number): Promise<{ id: number; isLocked: boolean; message: string }> {
+        const userId = AuthService.getUserId();
+        if (!userId) {
+            throw new Error('Utilisateur non connecté');
+        }
+
+        const response = await AuthService.authenticatedFetch(`/posts/${postId}/unlock`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ userId })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Erreur lors du déverrouillage du post');
+        }
+
         return response.json();
     }
 }; 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Button from '../ui/Button';
 import { DataRequests } from '../data/data-requests';
+import Icon from '../ui/Icon';
 
 interface TweetModalProps {
   isOpen: boolean;
@@ -14,6 +15,7 @@ export default function TweetModal({ isOpen, onClose, onTweetSuccess }: TweetMod
   const [error, setError] = useState<string | null>(null);
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([]);
+  const [isLocked, setIsLocked] = useState(false);
   const charLimit = 280;
   const maxImages = 4; // Limite maximale d'images
 
@@ -27,6 +29,7 @@ export default function TweetModal({ isOpen, onClose, onTweetSuccess }: TweetMod
       setError(null);
       setSelectedImages([]);
       setImagePreviewUrls([]);
+      setIsLocked(false);
     }
     return () => {
       document.body.style.overflow = 'unset';
@@ -68,7 +71,7 @@ export default function TweetModal({ isOpen, onClose, onTweetSuccess }: TweetMod
       setIsSubmitting(true);
       setError(null);
       
-      const newTweet = await DataRequests.createPost(content, selectedImages);
+      const newTweet = await DataRequests.createPost(content, selectedImages, isLocked);
       
       // Émettre l'événement avec le nouveau tweet
       const newTweetEvent = new CustomEvent('newTweet', {
@@ -80,6 +83,7 @@ export default function TweetModal({ isOpen, onClose, onTweetSuccess }: TweetMod
       setContent('');
       setSelectedImages([]);
       setImagePreviewUrls([]);
+      setIsLocked(false);
       
       // Fermer le modal
       onClose();
@@ -198,8 +202,19 @@ export default function TweetModal({ isOpen, onClose, onTweetSuccess }: TweetMod
             )}
             
             <div className="flex items-center justify-between mt-4 border-t border-gray-800 pt-4">
-              <div className={`text-sm ${isOverLimit ? 'text-red-500' : 'text-gray-400'}`}>
-                {remainingChars} caractères restants
+              <div className="flex items-center gap-4">
+                <div className={`text-sm ${isOverLimit ? 'text-red-500' : 'text-gray-400'}`}>
+                  {remainingChars} caractères restants
+                </div>
+                <Button 
+                  variant="default" 
+                  size="sm" 
+                  type="button"
+                  onClick={() => setIsLocked(!isLocked)}
+                  title={isLocked ? "Déverrouiller le post" : "Verrouiller le post"}
+                >
+                  <Icon name={isLocked ? "lock" : "unlock"} />
+                </Button>
               </div>
               <Button 
                 variant="default" 
