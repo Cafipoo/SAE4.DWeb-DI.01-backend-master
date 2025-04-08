@@ -73,6 +73,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(nullable: true)]
     private ?bool $isPrivate = null;
 
+    #[ORM\Column(nullable: true)]
+    private ?bool $isLimited = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -321,6 +324,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setIsPrivate(?bool $isPrivate): static
     {
         $this->isPrivate = $isPrivate;
+
+        return $this;
+    }
+
+    public function isLimited(): ?bool
+    {
+        return $this->isLimited;
+    }
+
+    public function setIsLimited(?bool $isLimited): static
+    {
+        $this->isLimited = $isLimited;
 
         return $this;
     }

@@ -284,10 +284,14 @@ class UserController extends AbstractController
             if (!isset($data['privateMode'])) {
                 return $this->json(['error' => 'Champs requis manquants'], Response::HTTP_BAD_REQUEST);
             }
+            if (!isset($data['isLimited'])) {
+                return $this->json(['error' => 'Champs requis manquants'], Response::HTTP_BAD_REQUEST);
+            }
 
             $user->setReloading($data['reloading']);
             $user->setLecture($data['lecture']);
             $user->setIsPrivate($data['privateMode']);
+            $user->setIsLimited($data['isLimited']);
             $entityManager->persist($user);
             $entityManager->flush();
 
@@ -296,7 +300,8 @@ class UserController extends AbstractController
                 'user' => [
                     'reloading' => $user->getReloading(),
                     'lecture' => $user->isLecture(),
-                    'privateMode' => $user->isPrivate()
+                    'privateMode' => $user->isPrivate(),
+                    'isLimited' => $user->isLimited()
                 ]
             ]);
 

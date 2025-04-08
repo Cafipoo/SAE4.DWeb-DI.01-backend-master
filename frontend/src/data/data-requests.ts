@@ -12,6 +12,9 @@ export interface User {
     location: string | null;
     siteWeb: string | null;
     privateMode: boolean;
+    lecture: boolean;
+    reloading: number;
+    isLimited: boolean;
     banned: boolean;
     is_banned_by_current_user: boolean;
     followers_count: number;
@@ -46,6 +49,10 @@ export interface Post {
             name: string;
             username: string;
             avatar: string;
+            banned: boolean;
+            lecture?: boolean;
+            privateMode?: boolean;
+            isLimited?: boolean;
         };
     };
     author: {
@@ -56,6 +63,8 @@ export interface Post {
         banned: boolean;
         lecture?: boolean;
         privateMode?: boolean;
+        isLimited?: boolean;
+        isFollowed?: boolean;
     };
     likes_count: number;
     liked_by: number[];
@@ -476,7 +485,7 @@ export const DataRequests = {
             throw error;
         }
     },
-    async updateSetting(userId: number, reloading: string, lecture: boolean, privateMode: boolean): Promise<User> {
+    async updateSetting(userId: number, reloading: string, lecture: boolean, privateMode: boolean, isLimited: boolean): Promise<User> {
         try {
             const response = await AuthService.authenticatedFetch(`/update/settings/${userId}`, {
                 method: 'POST',
@@ -484,7 +493,7 @@ export const DataRequests = {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json'
                 },
-                body: JSON.stringify({ reloading, lecture, privateMode })
+                body: JSON.stringify({ reloading, lecture, privateMode, isLimited })
             });
 
             const responseText = await response.text();

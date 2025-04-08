@@ -94,18 +94,30 @@ class PostController extends AbstractController
                 $originalPost = $postRepository->find($post->getRetweet());
                 if ($originalPost) {
                     $originalPostUser = $originalPost->getUser();
+                    // Vérifier si l'utilisateur suit l'auteur du post original
+                    $isOriginalPostFollowed = false;
+                    if ($currentUserId > 0) {
+                        $isOriginalPostFollowed = $userInteractionRepository->findOneBy([
+                            'user' => $currentUserId,
+                            'secondUser' => $originalPostUser->getId(),
+                            'followed' => true
+                        ]) !== null;
+                    }
+                    
                     $originalPost = [
                         'id' => $originalPost->getId(),
                         'content' => $post->getRetweetContent() ?? $originalPost->getContent(),
                         'created_at' => $originalPost->getCreatedAt()->format('Y-m-d H:i:s'),
                         'media' => $post->getRetweetMedia() ? json_decode($post->getRetweetMedia()) : ($originalPost->getMedia() ? json_decode($originalPost->getMedia()) : []),
+                        'censored' => $originalPost->isCensored(),
                         'reposts' => $postRepository->count(['retweet' => $originalPost->getId()]),
                         'author' => [
                             'id' => $originalPostUser->getId(),
                             'name' => $originalPostUser->getName(),
                             'username' => $originalPostUser->getUsername(),
                             'avatar' => $originalPostUser->getAvatar(),
-                            'privateMode' => $originalPostUser->isPrivate()
+                            'privateMode' => $originalPostUser->isPrivate(),
+                            'isFollowed' => $isOriginalPostFollowed
                         ]
                     ];
                 }
@@ -117,6 +129,7 @@ class PostController extends AbstractController
                 'created_at' => $post->getCreatedAt()->format('Y-m-d H:i:s'),
                 'media' => $post->getMedia() ? json_decode($post->getMedia()) : [],
                 'censored' => $post->isCensored(),
+                'isLimited' => $user->isLimited(),
                 'reposts' => $retweetCount,
                 'retweet' => $post->getRetweet(),
                 'original_post' => $originalPost,
@@ -128,7 +141,8 @@ class PostController extends AbstractController
                     'email' => $user->getEmail(),
                     'banned' => $user->isBanned(),
                     'lecture' => $user->isLecture(),
-                    'privateMode' => $user->isPrivate()
+                    'privateMode' => $user->isPrivate(),
+                    'isLimited' => $user->isLimited()
                 ],
                 'likes_count' => count($likes),
                 'liked_by' => $likedByIds,

@@ -13,6 +13,9 @@ export interface User {
     location?: string;
     siteWeb?: string;
     banned: boolean;
+    privateMode?: boolean;
+    isLimited?: boolean;
+    lecture?: boolean;
 }
 
 export interface AuthResponse {

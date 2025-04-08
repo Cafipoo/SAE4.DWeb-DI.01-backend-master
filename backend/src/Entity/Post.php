@@ -47,6 +47,9 @@ class Post
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $retweetMedia = null;
 
+    #[ORM\Column(nullable: true)]
+    private ?bool $isLocked = null;
+
 
     public function __construct()
     {
@@ -199,6 +202,18 @@ class Post
     public function setRetweetMedia(?string $retweetMedia): static
     {
         $this->retweetMedia = $retweetMedia;
+
+        return $this;
+    }
+
+    public function isLocked(): ?bool
+    {
+        return $this->isLocked;
+    }
+
+    public function setIsLocked(?bool $isLocked): static
+    {
+        $this->isLocked = $isLocked;
 
         return $this;
     }

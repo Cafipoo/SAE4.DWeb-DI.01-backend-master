@@ -10,20 +10,35 @@ const Setting = () => {
     if (reloading == null) {
         reloading = 0;
     }
+    let lecture = userJson.lecture;
+    if (lecture == null) {
+        lecture = false;
+    }
+    let initialPrivateMode = userJson.privateMode;
+    if (initialPrivateMode == null) {
+        initialPrivateMode = false;
+    }
+    let initialLimitedMode = userJson.isLimited;
+    if (initialLimitedMode == null) {
+        initialLimitedMode = false;
+    }
   const [sliderValue, setSliderValue] = useState(reloading);
-  const [readOnlyMode, setReadOnlyMode] = useState(false);
-  const [privateMode, setPrivateMode] = useState(false);
-  
+  const [readOnlyMode, setReadOnlyMode] = useState(lecture);
+  const [privateMode, setPrivateMode] = useState(initialPrivateMode);
+  const [limitedMode, setLimitedMode] = useState(initialLimitedMode);
   const handleSliderChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSliderValue(Number(event.target.value));
   };
 
   const handleSubmit = async () => {
     try {
-      await DataRequests.updateSetting(userJson.id, sliderValue.toString(), readOnlyMode, privateMode);
+      await DataRequests.updateSetting(userJson.id, sliderValue.toString(), readOnlyMode, privateMode, limitedMode);
       let user = localStorage.getItem("user");
       let datauser = JSON.parse(user!);
       datauser.reloading = sliderValue;
+      datauser.lecture = readOnlyMode;
+      datauser.privateMode = privateMode;
+      datauser.isLimited = limitedMode;
       localStorage.setItem("user", JSON.stringify(datauser));
       
       // Déclencher l'événement de mise à jour du reloading
@@ -94,6 +109,24 @@ const Setting = () => {
                     className="sr-only peer"
                     checked={privateMode}
                     onChange={(e) => setPrivateMode(e.target.checked)}
+                  />
+                  <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-white font-medium">Mode limité</label>
+                  <p className="text-gray-400 text-sm">Limite qui peut commenter vos tweets</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="sr-only peer"
+                    checked={limitedMode}
+                    onChange={(e) => setLimitedMode(e.target.checked)}
                   />
                   <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                 </label>

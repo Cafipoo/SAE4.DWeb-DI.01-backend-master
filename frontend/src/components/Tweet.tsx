@@ -24,6 +24,8 @@ interface TweetProps {
       avatar: string;
       banned: boolean;
       lecture?: boolean;
+      privateMode?: boolean;
+      isLimited?: boolean;
     };
   };
   onDelete?: (postId: number) => void;
@@ -324,7 +326,7 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, showPinButton = 
                 )}
                 {currentPost.retweet ? (
                   <div className="border border-gray-700 rounded-lg p-4">
-                    {currentPost.original_post?.author.privateMode && !currentPost.isFollowed && currentPost.original_post?.author.id !== name.id ? (
+                    {currentPost.original_post?.author.privateMode && !currentPost.original_post?.author.isFollowed && currentPost.original_post?.author.id !== name.id ? (
                       <div className="flex flex-col items-center justify-center py-4">
                         <svg className="w-8 h-8 text-gray-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -350,36 +352,28 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, showPinButton = 
                           {processText(currentPost.original_post?.content || '')}
                         </p>
                         {currentPost.original_post?.media && currentPost.original_post.media.length > 0 && (
-                          <div className="mb-3">
-                            <div className="grid grid-cols-2 gap-2">
-                              {currentPost.original_post.media.map((mediaUrl, index) => {
-                                const isVideo = mediaUrl.match(/\.(mp4|webm|ogg)$/i);
-                                return (
-                                  <div key={index} className="relative">
-                                    {isVideo ? (
-                                      <video
-                                        src={`http://localhost:8080/uploads/posts/${mediaUrl}`}
-                                        className="w-full h-32 object-cover rounded-lg cursor-pointer"
-                                        onClick={() => {
-                                          setMediaViewerIndex(index);
-                                          setIsMediaViewerOpen(true);
-                                        }}
-                                      />
-                                    ) : (
-                                      <img
-                                        src={`http://localhost:8080/uploads/posts/${mediaUrl}`}
-                                        alt={`Média ${index + 1}`}
-                                        className="w-full h-32 object-cover rounded-lg cursor-pointer"
-                                        onClick={() => {
-                                          setMediaViewerIndex(index);
-                                          setIsMediaViewerOpen(true);
-                                        }}
-                                      />
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
+                          <div className="grid grid-cols-2 gap-2 mb-3">
+                            {currentPost.original_post.media.map((mediaUrl, index) => {
+                              const isVideo = mediaUrl.match(/\.(mp4|webm|ogg)$/i);
+                              return (
+                                <div key={index} className="relative aspect-square">
+                                  {isVideo ? (
+                                    <video
+                                      src={`http://localhost:8080/uploads/posts/${mediaUrl}`}
+                                      className="w-full h-full object-cover rounded-lg"
+                                      controls
+                                    />
+                                  ) : (
+                                    <img
+                                      src={`http://localhost:8080/uploads/posts/${mediaUrl}`}
+                                      alt={`Media ${index + 1}`}
+                                      className="w-full h-full object-cover rounded-lg cursor-pointer"
+                                      onClick={() => openMediaViewer(index)}
+                                    />
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         )}
                       </>
@@ -387,55 +381,68 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, showPinButton = 
                   </div>
                 ) : (
                   <>
-                    <div>
-                      <p className="text-white mb-3 break-all break-words whitespace-pre-wrap overflow-hidden max-w-full">
-                        {processText(currentPost.content)}
-                      </p>
-                    </div>
-                    {currentPost.media && currentPost.media.length > 0 && (
-                      <div className="mb-3">
-                        <div className="grid grid-cols-2 gap-2">
-                          {currentPost.media.map((mediaUrl, index) => {
-                            const isVideo = mediaUrl.match(/\.(mp4|webm|ogg)$/i);
-                            return (
-                              <div key={index} className="relative">
-                                {isVideo ? (
-                                  <video
-                                    src={`http://localhost:8080/uploads/posts/${mediaUrl}`}
-                                    className="w-full h-48 object-cover rounded-lg cursor-pointer"
-                                    onClick={() => {
-                                      setMediaViewerIndex(index);
-                                      setIsMediaViewerOpen(true);
-                                    }}
-                                  />
-                                ) : (
-                                  <img
-                                    src={`http://localhost:8080/uploads/posts/${mediaUrl}`}
-                                    alt={`Média ${index + 1}`}
-                                    className="w-full h-48 object-cover rounded-lg cursor-pointer"
-                                    onClick={() => {
-                                      setMediaViewerIndex(index);
-                                      setIsMediaViewerOpen(true);
-                                    }}
-                                  />
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
+                    {author.privateMode && !currentPost.isFollowed && author.id !== name.id ? (
+                      <div className="flex flex-col items-center justify-center py-4">
+                        <svg className="w-8 h-8 text-gray-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        <p className="text-gray-500 text-center">
+                          Ce compte est privé
+                        </p>
                       </div>
+                    ) : (
+                      <>
+                        <p className="text-white mb-3 break-all break-words whitespace-pre-wrap overflow-hidden max-w-full">
+                          {processText(currentPost.content)}
+                        </p>
+                        {currentPost.media && currentPost.media.length > 0 && (
+                          <div className="grid grid-cols-2 gap-2 mb-3">
+                            {currentPost.media.map((mediaUrl, index) => {
+                              const isVideo = mediaUrl.match(/\.(mp4|webm|ogg)$/i);
+                              return (
+                                <div key={index} className="relative aspect-square">
+                                  {isVideo ? (
+                                    <video
+                                      src={`http://localhost:8080/uploads/posts/${mediaUrl}`}
+                                      className="w-full h-full object-cover rounded-lg"
+                                      controls
+                                    />
+                                  ) : (
+                                    <img
+                                      src={`http://localhost:8080/uploads/posts/${mediaUrl}`}
+                                      alt={`Media ${index + 1}`}
+                                      className="w-full h-full object-cover rounded-lg cursor-pointer"
+                                      onClick={() => openMediaViewer(index)}
+                                    />
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </>
                     )}
                   </>
                 )}
-                {(!author.lecture || author.lecture === null) && (post.isFollowed || name.id === post.author.id) && (
+                {(!author.lecture && (!author.privateMode || post.isFollowed || name.id === post.author.id)) && (
                   <div className="flex justify-between text-gray-500 max-w-md">
-                    <Button 
-                      className="bg-transparent flex items-center gap-2 hover:text-blue-500 transition-colors"
-                      onClick={() => setIsCommenting(!isCommenting)}
-                    >
-                      <Icon name="reply" className="w-5 h-5" />
-                      <span>{replies}</span>
-                    </Button>
+                    {author.isLimited && !post.isFollowed ? (
+                      <Button 
+                        className="bg-transparent flex items-center gap-2 hover:text-blue-500 transition-colors"
+                        onClick={() => null}
+                      >
+                        <Icon name="limited" className="w-5 h-5" />
+                        <span>{replies}</span>
+                      </Button>
+                    ) : (
+                      <Button 
+                        className="bg-transparent flex items-center gap-2 hover:text-blue-500 transition-colors"
+                        onClick={() => setIsCommenting(!isCommenting)}
+                      >
+                        <Icon name="reply" className="w-5 h-5" />
+                        <span>{replies}</span>
+                      </Button>
+                    )}
                     <Button 
                       className="bg-transparent flex items-center gap-2 hover:text-green-500 transition-colors"
                       onClick={() => setIsRetweetModalOpen(true)}
