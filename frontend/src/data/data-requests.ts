@@ -168,7 +168,11 @@ export const DataRequests = {
             }
             const jsonText = jsonMatch[0];
 
-            if (!response.ok) {
+            if (response.status === 403) {
+                await AuthService.logout();
+                throw new Error('Vous êtes banni et avez été déconnecté');
+            }
+            else if (!response.ok) {
                 let errorData;
                 try {
                     errorData = JSON.parse(jsonText);
@@ -206,7 +210,11 @@ export const DataRequests = {
             }
             const jsonText = jsonMatch[0];
 
-            if (!response.ok) {
+            if (response.status === 403) {
+                await AuthService.logout();
+                throw new Error('Vous êtes banni et avez été déconnecté');
+            }
+            else if (!response.ok) {
                 let errorData;
                 try {
                     errorData = JSON.parse(jsonText);
@@ -952,6 +960,14 @@ export const DataRequests = {
 
     async getUnreadCount(userId: number): Promise<{ unread_count: number }> {
         const response = await AuthService.authenticatedFetch(`/notifications/${userId}/unread-count`);
+        if (response.status === 403) {
+            await AuthService.logout();
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Vous êtes banni et avez été déconnecté');
+        }
+        else if (!response.ok) {
+            throw new Error('Erreur lors de la récupération du nombre de notifications non lues');
+        }
         return response.json();
     },
 

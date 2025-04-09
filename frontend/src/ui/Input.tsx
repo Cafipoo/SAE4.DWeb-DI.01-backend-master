@@ -53,12 +53,12 @@ const Input = ({
       type={type}
       name={name}
       required
-      className={`w-full px-4 py-3 border ${error ? 'border-gray-800' : 'border-red-800'} rounded-lg bg-black text-white focus:ring-2 focus:ring-white focus:border-transparent`}
+      className={`w-full px-4 py-3 border ${error ? 'border-black' : 'border-dark-red'} rounded-lg bg-black text-white focus:ring-2 focus:ring-white focus:border-transparent`}
       placeholder={placeholder}
       onChange={onChange}
       value={value}
     />
-    {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
+    {error && <p className="text-primary text-sm mt-1">{error}</p>}
     {showPasswordStrength && type === 'password' && <PasswordStrength password={value || ''} />}
   </div>
 );

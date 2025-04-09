@@ -189,15 +189,21 @@ export default function EditTweetModal({ isOpen, onClose, post, onEditSuccess }:
                   const isKeeping = isExistingMedia ? existingMediaToKeep.includes(index) : true;
                   
                   if (!isKeeping) return null;
+
+                  // Déterminer si c'est une vidéo en fonction du type MIME ou de l'extension
+                  const isVideo = isExistingMedia 
+                    ? post.media[index].endsWith('.mp4') || post.media[index].endsWith('.webm') || post.media[index].endsWith('.mov')
+                    : selectedImages[index - (post.media?.length || 0)]?.type.startsWith('video/');
                   
                   return (
                     <div key={index} className="relative group">
-                      {url.endsWith('.mp4') || url.endsWith('.webm') || url.endsWith('.mov') ? (
+                      {isVideo ? (
                         <video
                           src={url}
                           className="w-full h-32 object-cover rounded-lg"
                           controls
                           muted
+                          playsInline
                         />
                       ) : (
                         <img
@@ -260,4 +266,4 @@ export default function EditTweetModal({ isOpen, onClose, post, onEditSuccess }:
       </div>
     </>
   );
-} 
+}

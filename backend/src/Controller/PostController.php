@@ -20,7 +20,7 @@ use App\Entity\User;
 class PostController extends AbstractController
 {
     #[Route('/posts', name: 'posts.index', methods: ['GET'])]
-    public function index(Request $request, PostRepository $postRepository, UserInteractionRepository $userInteractionRepository): JsonResponse
+    public function index(Request $request, PostRepository $postRepository, UserInteractionRepository $userInteractionRepository, UserRepository $userRepository): JsonResponse
     {
         $postsPerPage = 5;
         $page = max(1, $request->query->getInt('page', 1));
@@ -28,6 +28,14 @@ class PostController extends AbstractController
 
         // Récupérer l'ID de l'utilisateur depuis la requête pour vérifier les follows
         $currentUserId = $request->query->getInt('userId', 0);
+        
+        // Vérifier si l'utilisateur est banni
+        if ($currentUserId > 0) {
+            $user = $userRepository->find($currentUserId);
+            if ($user && $user->isBanned()) {
+                return $this->json(['error' => 'Vous êtes banni et ne pouvez pas accéder à cette ressource'], Response::HTTP_FORBIDDEN);
+            }
+        }
 
         $qb = $postRepository->createQueryBuilder('p')
             ->leftJoin('p.user', 'u')

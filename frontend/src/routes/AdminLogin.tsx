@@ -32,7 +32,7 @@ const AdminLogin = () => {
   return (
     <AuthLayout>
       <h1 className="text-2xl font-bold text-white mb-8">Administration</h1>
-      {error && <p className="text-red-500 mb-4">{error}</p>}
+      {error && <p className="text-primary mb-4">{error}</p>}
       <form onSubmit={handleSubmit} className="space-y-4">
         <Input
           type="text"

@@ -11,6 +11,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 
 class NotificationController extends AbstractController
@@ -177,6 +178,9 @@ class NotificationController extends AbstractController
             $user = $userRepository->find($id);
             if (!$user) {
                 return new JsonResponse(['error' => 'Utilisateur non trouvé'], 404);
+            }
+            if ($user->isBanned()) {
+                return new JsonResponse(['error' => 'Vous êtes banni et ne pouvez pas accéder à cette ressource'], Response::HTTP_FORBIDDEN);
             }
 
             // Compter les notifications non lues

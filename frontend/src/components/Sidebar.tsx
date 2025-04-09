@@ -12,7 +12,7 @@ const navItems = [
   // { icon: "explore", label: "Explorer", path: "/explore" },
   // { icon: "notifications", label: "Notifications", path: "/notifications" },
   // { icon: "messages", label: "Messages", path: "/messages" },
-  { icon: 'profile', label: "Profil", path: "/profile/" + AuthService.getUsername() },
+  { icon: 'profile', label: "Profil", path: "/profile" },
   { icon: "settings", label: "Paramètres", path: "/settings" },
   { icon: "notifications", label: "Notifications", path: "/notifications" },
   // { icon: "more", label: "Plus", path: "/more" }
@@ -23,6 +23,7 @@ const Sidebar = () => {
   const [user, setUser] = useState<User | null>(null);
   const [isTweetModalOpen, setIsTweetModalOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  
 
   const fetchUnreadCount = async () => {
     try {
@@ -79,12 +80,15 @@ const Sidebar = () => {
       {/* Mobile Navigation */}
       <ul className="fixed bottom-0 left-0 flex justify-around items-center h-16 right-0 border-t bg-black border-gray-800 md:hidden z-50">
           {navItems.map((item) => {
+            const path = item.icon === 'profile' && user?.username 
+              ? `/profile/${user.username}`
+              : item.path;
             return (
-              <li key={item.path}>
+              <li key={path}>
                 <Link
-                  to={item.path}
+                  to={path}
                   className={`flex items-center text-xl p-3 rounded-full hover:bg-gray-900 transition-colors list-none ${
-                    location.pathname === item.path
+                    location.pathname === path
                       ? 'text-white font-bold'
                       : 'text-secondary'
                   }`}
@@ -124,13 +128,16 @@ const Sidebar = () => {
 
         <nav className="flex-1 px-2">
           <ul className="space-y-1">
-            {navItems.map((item) => (
-              (item.icon === "notifications" && unreadCount > 0) ? (
-                <li key={item.path}>
+            {navItems.map((item) => {
+              const path = item.icon === 'profile' && user?.username 
+                ? `/profile/${user.username}`
+                : item.path;
+              return item.icon === "notifications" && unreadCount > 0 ? (
+                <li key={path}>
                 <Link
-                  to={item.path}
+                  to={path}
                   className={`group flex items-center text-xl p-3 rounded-full hover:bg-gray-900 transition-colors relative ${
-                    location.pathname === item.path
+                    location.pathname === path
                       ? 'text-white font-bold'
                       : 'text-secondary'
                   }`}
@@ -145,11 +152,11 @@ const Sidebar = () => {
                 </Link>
               </li>
               ) : (
-              <li key={item.path}>
+              <li key={path}>
                 <Link
-                  to={item.path}
+                  to={path}
                   className={`group flex items-center text-xl p-3 rounded-full hover:bg-gray-900 transition-colors ${
-                    location.pathname === item.path
+                    location.pathname === path
                       ? 'text-white font-bold'
                       : 'text-secondary'
                   }`}
@@ -161,7 +168,7 @@ const Sidebar = () => {
                 </Link>
               </li>
               )
-            ))}
+            })}
           </ul>
 
           <Button

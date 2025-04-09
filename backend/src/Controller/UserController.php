@@ -454,6 +454,9 @@ class UserController extends AbstractController
         if (!$user) {
             return $this->json(['error' => 'User not found'], Response::HTTP_NOT_FOUND);
         }
+        if ($user->isBanned()) {
+            return $this->json(['error' => 'Vous êtes banni et ne pouvez pas accéder à cette ressource'], Response::HTTP_FORBIDDEN);
+        }
 
         // Récupérer l'utilisateur connecté pour vérifier les follows
         $currentUserId = $request->query->getInt('currentUserId', 0);
@@ -485,22 +488,18 @@ class UserController extends AbstractController
             $user = $post->getUser();
             
             // Récupérer les likes pour ce post
-            $likes = $postInteractionRepository->findBy([
-                'post' => $post,
-                'likes' => true
-            ]);
+            $likes = $post->getPostInteractions()->filter(function($interaction) {
+                return $interaction->isLikes() === true;
+            });
             
-            $likedByIds = array_map(function($interaction) {
+            $likedByIds = $likes->map(function($interaction) {
                 return $interaction->getIdUser()->getId();
-            }, $likes);
+            })->toArray();
 
             // Récupérer les commentaires pour ce post
-            $comments = $postInteractionRepository->findBy([
-                'post' => $post,
-                'comments' => ['IS NOT NULL']
-            ]);
-
-            $commentsData = array_map(function($interaction) {
+            $comments = $post->getPostInteractions()->filter(function($interaction) {
+                return $interaction->getComments() !== null;
+            })->map(function($interaction) {
                 return [
                     'id' => $interaction->getId(),
                     'comments' => $interaction->getComments(),
@@ -509,10 +508,11 @@ class UserController extends AbstractController
                         'id' => $interaction->getIdUser()->getId(),
                         'name' => $interaction->getIdUser()->getName(),
                         'username' => $interaction->getIdUser()->getUsername(),
-                        'avatar' => $interaction->getIdUser()->getAvatar()
+                        'avatar' => $interaction->getIdUser()->getAvatar(),
+                        'privateMode' => $interaction->getIdUser()->isPrivate()
                     ]
                 ];
-            }, $comments);
+            })->toArray();
 
             // Vérifier si l'utilisateur actuel suit l'auteur du post
             $isFollowed = false;
@@ -549,7 +549,7 @@ class UserController extends AbstractController
                 'liked_by' => $likedByIds,
                 'reposts' => $retweetCount,
                 'replies' => count($comments),
-                'comments' => $commentsData,
+                'comments' => $comments,
                 'retweet' => $post->getRetweet()
             ];
 

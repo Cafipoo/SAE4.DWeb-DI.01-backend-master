@@ -278,25 +278,33 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, onUnpin, showPin
         <>
           <article className={`border-b border-gray-700 p-4 hover:bg-gray-900/50 transition-colors cursor-pointer ${post.isPinned ? 'bg-gray-900/30' : ''}`}>
             {currentPost.retweet && !currentPost.content && (
-              <div className="flex items-center text-gray-500 text-sm mb-2">
+              <div className="flex items-center text-secondary text-sm mb-2">
                 <Icon name="repost" className="w-4 h-4 mr-2" />
                 <span>Retweeté par {author.name}</span>
               </div>
             )}
             <div className="flex gap-4">
-              <img
-                src={`http://localhost:8080/uploads/avatar/${author.avatar}`}
-                alt={author.name}
-                className="w-12 h-12 rounded-full"
+              {author.avatar === null ? (
+                <img
+                  src={`src/assets/default-avatar.webp`}
+                  alt={author.name}
+                  className="w-12 h-12 rounded-full"
+                />
+              ) : (
+                <img
+                  src={`http://localhost:8080/uploads/avatar/${author.avatar}`}
+                  alt={author.name}
+                  className="w-12 h-12 rounded-full"
               />
+              )}
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
                     <Link to={`/profile/${author.username}`} className="font-bold text-white hover:underline">
                       {author.name}
                     </Link>
-                  <p className="text-gray-500"> @{author.username}</p>
-                  <span className="text-gray-500">·</span>
-                  <time className="text-gray-500">{new Date(currentPost.created_at).toLocaleDateString()}</time>
+                  <p className="text-secondary"> @{author.username}</p>
+                  <span className="text-secondary">·</span>
+                  <time className="text-secondary">{new Date(currentPost.created_at).toLocaleDateString()}</time>
                   {name.name === author.name ? (
                     <div className="flex gap-2">
                       {showPinButton && (
@@ -357,10 +365,10 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, onUnpin, showPin
                   <div className="border border-gray-700 rounded-lg p-4">
                     {currentPost.original_post?.author.privateMode && !currentPost.original_post?.author.isFollowed && currentPost.original_post?.author.id !== name.id ? (
                       <div className="flex flex-col items-center justify-center py-4">
-                        <svg className="w-8 h-8 text-gray-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <svg className="w-8 h-8 text-secondary mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                         </svg>
-                        <p className="text-gray-500 text-center">
+                        <p className="text-secondary text-center">
                           Ce compte est privé
                         </p>
                       </div>
@@ -374,7 +382,7 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, onUnpin, showPin
                           />
                           <div>
                             <span className="font-bold text-white">{currentPost.original_post?.author.name}</span>
-                            <span className="text-gray-500 ml-2">@{currentPost.original_post?.author.username}</span>
+                            <span className="text-secondary ml-2">@{currentPost.original_post?.author.username}</span>
                           </div>
                         </div>
                         <p className="text-white mb-3 break-all break-words whitespace-pre-wrap overflow-hidden max-w-full">
@@ -412,10 +420,10 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, onUnpin, showPin
                   <>
                     {author.privateMode && !currentPost.isFollowed && author.id !== name.id ? (
                       <div className="flex flex-col items-center justify-center py-4">
-                        <svg className="w-8 h-8 text-gray-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <svg className="w-8 h-8 text-secondary mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                         </svg>
-                        <p className="text-gray-500 text-center">
+                        <p className="text-secondary text-center">
                           Ce compte est privé
                         </p>
                       </div>
@@ -454,14 +462,14 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, onUnpin, showPin
                   </>
                 )}
                 {(!author.lecture && (!author.privateMode || post.isFollowed || name.id === post.author.id)) && (
-                  <div className="flex justify-between text-gray-500 max-w-md">
-                    {author.isLimited && !post.isFollowed && name.id !== post.author.id || !currentPost.isLocked ? (
+                  <div className="flex justify-between text-secondary max-w-md">
+                    {currentPost.isLocked || (author.isLimited && !post.isFollowed && name.id !== post.author.id) ? (
                       <Button 
-                        className="bg-transparent flex items-center gap-2 hover:text-blue-500 transition-colors"
-                        onClick={() => null}
+                        className="bg-transparent flex items-center gap-2 text-secondary cursor-not-allowed"
+                        disabled
                       >
                         <Icon name="limited" className="w-5 h-5" />
-                        <span>{replies}</span>
+                        <span>{currentPost.comments?.length || 0}</span>
                       </Button>
                     ) : (
                       <Button 
@@ -469,7 +477,7 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, onUnpin, showPin
                         onClick={() => setIsCommenting(!isCommenting)}
                       >
                         <Icon name="reply" className="w-5 h-5" />
-                        <span>{replies}</span>
+                        <span>{currentPost.comments?.length || 0}</span>
                       </Button>
                     )}
                     <Button 
@@ -497,55 +505,57 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, onUnpin, showPin
                   </div>
                 )}
                 {/* Commentaires */}
-                <div className="mt-4 space-y-4">
-                  {Array.isArray(currentPost.comments) && currentPost.comments.map((comment) => (
-                    <div key={comment.id} className="flex gap-3">
-                      <img
-                        src={`http://localhost:8080/uploads/avatar/${comment.user.avatar}`}
-                        alt={comment.user.name}
-                        className="w-8 h-8 rounded-full text-white"
-                      />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-white">{comment.user.name}</span>
-                          <span className="text-secondary">@{comment.user.username}</span>
-                          <span className="text-secondary">·</span>
-                          <span className="text-secondary">
-                            {comment.created_at ? new Date(comment.created_at).toLocaleDateString() : ''}
-                          </span>
-                          {name.username === comment.user.username && (
-                            <>
-                              <Button 
-                                variant="default" 
-                                size="sm" 
-                                onClick={() => {
-                                  setSelectedComment(comment);
-                                  setIsEditCommentModalOpen(true);
-                                }}
-                              >
-                                <Icon name="edit" />
-                              </Button>
-                              <Button 
-                                variant="default" 
-                                size="sm" 
-                                onClick={() => {
-                                  setSelectedComment(comment);
-                                  setIsDeleteCommentModalOpen(true);
-                                }}
-                              >
-                                <Icon name="delete" />
-                              </Button>
-                            </>
-                          )}
+                {!currentPost.isLocked && (
+                  <div className="mt-4 space-y-4">
+                    {Array.isArray(currentPost.comments) && currentPost.comments.map((comment) => (
+                      <div key={comment.id} className="flex gap-3">
+                        <img
+                          src={`http://localhost:8080/uploads/avatar/${comment.user.avatar}`}
+                          alt={comment.user.name}
+                          className="w-8 h-8 rounded-full text-white"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-white">{comment.user.name}</span>
+                            <span className="text-secondary">@{comment.user.username}</span>
+                            <span className="text-secondary">·</span>
+                            <span className="text-secondary">
+                              {comment.created_at ? new Date(comment.created_at).toLocaleDateString() : ''}
+                            </span>
+                            {name.username === comment.user.username && (
+                              <>
+                                <Button 
+                                  variant="default" 
+                                  size="sm" 
+                                  onClick={() => {
+                                    setSelectedComment(comment);
+                                    setIsEditCommentModalOpen(true);
+                                  }}
+                                >
+                                  <Icon name="edit" />
+                                </Button>
+                                <Button 
+                                  variant="default" 
+                                  size="sm" 
+                                  onClick={() => {
+                                    setSelectedComment(comment);
+                                    setIsDeleteCommentModalOpen(true);
+                                  }}
+                                >
+                                  <Icon name="delete" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                          <p className="mt-1 text-white">{comment.comments}</p>
                         </div>
-                        <p className="mt-1 text-white">{comment.comments}</p>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
 
                 {/* Zone de commentaire */}
-                {isCommenting && (
+                {!currentPost.isLocked && isCommenting && (
                     <div className="mt-4">
                         <textarea
                             value={newComment}

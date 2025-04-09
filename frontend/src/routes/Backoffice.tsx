@@ -123,18 +123,18 @@ const Backoffice = () => {
           <h1 className="text-2xl font-bold">Dashboard d'administration</h1>
           <button
             onClick={handleLogout}
-            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+            className="px-4 py-2 bg-primary text-white rounded hover:bg-dark-red"
           >
             Déconnexion
           </button>
         </div>
 
         {error && (
-          <div className="text-red-500 text-center py-4 mb-8">{error}</div>
+          <div className="text-primary text-center py-4 mb-8">{error}</div>
         )}
 
         {/* Section Utilisateurs */}
-        <div className="bg-gray-900 rounded-lg p-6 mb-8">
+        <div className="bg-black rounded-lg p-6 mb-8">
           <h2 className="text-xl font-semibold mb-4">Utilisateurs</h2>
           {loading ? (
             <div className="text-center py-4">Chargement...</div>
@@ -143,7 +143,7 @@ const Backoffice = () => {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-gray-800">
+                    <tr className="border-b border-dark-secondary">
                       <th className="text-left py-3 px-4">ID</th>
                       <th className="text-left py-3 px-4">Nom d'utilisateur</th>
                       <th className="text-left py-3 px-4">Nom</th>
@@ -157,7 +157,7 @@ const Backoffice = () => {
                   <tbody>
                     {users && users.length > 0 ? (
                       users.map(user => (
-                        <tr key={user.id} className="border-b border-gray-800">
+                        <tr key={user.id} className="border-b border-dark-secondary">
                           <td className="py-3 px-4">{user.id}</td>
                           <td className="py-3 px-4">{user.username}</td>
                           <td className="py-3 px-4">{user.name}</td>
@@ -168,7 +168,7 @@ const Backoffice = () => {
                           <td className="py-3 px-4">
                             <button
                               onClick={() => handleEdit(user)}
-                              className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                              className="px-3 py-1 bg-primary text-white rounded hover:bg-dark-red"
                             >
                               Modifier
                             </button>
@@ -177,7 +177,7 @@ const Backoffice = () => {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={8} className="text-center py-4 text-gray-500">
+                        <td colSpan={8} className="text-center py-4 text-secondary">
                           Aucun utilisateur trouvé
                         </td>
                       </tr>
@@ -188,14 +188,14 @@ const Backoffice = () => {
 
               {userPagination && users.length > 0 && (
                 <div className="mt-4 flex justify-between items-center">
-                  <div className="text-sm text-gray-400">
+                  <div className="text-sm text-secondary">
                     {userPagination.total_users} : utilisateurs au total
                   </div>
                   <div className="flex gap-2">
                     {userPagination.previous_page !== null && (
                       <button
                         onClick={() => setCurrentUserPage(userPagination.previous_page!)}
-                        className="px-3 py-1 bg-gray-800 rounded hover:bg-gray-700"
+                        className="px-3 py-1 bg-dark-secondary rounded hover:bg-secondary"
                       >
                         Précédent
                       </button>
@@ -206,7 +206,7 @@ const Backoffice = () => {
                     {userPagination.next_page !== null && (
                       <button
                         onClick={() => setCurrentUserPage(userPagination.next_page!)}
-                        className="px-3 py-1 bg-gray-800 rounded hover:bg-gray-700"
+                        className="px-3 py-1 bg-dark-secondary rounded hover:bg-secondary"
                       >
                         Suivant
                       </button>
@@ -219,7 +219,7 @@ const Backoffice = () => {
         </div>
 
         {/* Section Posts */}
-        <div className="bg-gray-900 rounded-lg p-6">
+        <div className="bg-black rounded-lg p-6">
           <h2 className="text-xl font-semibold mb-4">Posts</h2>
           {loading ? (
             <div className="text-center py-4">Chargement...</div>
@@ -228,7 +228,7 @@ const Backoffice = () => {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-gray-800">
+                    <tr className="border-b border-black">
                       <th className="text-left py-3 px-4">ID</th>
                       <th className="text-left py-3 px-4">Auteur</th>
                       <th className="text-left py-3 px-4">Contenu</th>
@@ -241,7 +241,7 @@ const Backoffice = () => {
                   <tbody>
                     {posts && posts.length > 0 ? (
                       posts.map(post => (
-                        <tr key={post.id} className="border-b border-gray-800">
+                        <tr key={post.id} className="border-b border-black">
                           <td className="py-3 px-4">{post.id}</td>
                           <td className="py-3 px-4">{post.author?.username || 'Anonyme'}</td>
                           <td className="py-3 px-4 max-w-md truncate">{post.content}</td>
@@ -283,14 +283,14 @@ const Backoffice = () => {
                                 className={`px-3 py-1 rounded ${
                                   post.censored 
                                     ? 'bg-green-500 hover:bg-green-600' 
-                                    : 'bg-red-500 hover:bg-red-600'
+                                    : 'bg-primary hover:bg-dark-red'
                                 } text-white`}
                               >
                                 {post.censored ? 'Décensurer' : 'Censurer'}
                               </button>
                               <button
                                 onClick={() => handleDeletePost(post.id)}
-                                className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+                                className="px-3 py-1 bg-primary text-white rounded hover:bg-dark-red"
                               >
                                 Supprimer
                               </button>
@@ -300,7 +300,7 @@ const Backoffice = () => {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={6} className="text-center py-4 text-gray-500">
+                        <td colSpan={6} className="text-center py-4 text-secondary">
                           Aucun post trouvé
                         </td>
                       </tr>
@@ -311,14 +311,14 @@ const Backoffice = () => {
 
               {postPagination && posts.length > 0 && (
                 <div className="mt-4 flex justify-between items-center">
-                  <div className="text-sm text-gray-400">
+                  <div className="text-sm text-secondary">
                     {postPagination.total_posts} : posts au total
                   </div>
                   <div className="flex gap-2">
                     {postPagination.previous_page !== null && (
                       <button
                         onClick={() => setCurrentPostPage(postPagination.previous_page!)}
-                        className="px-3 py-1 bg-gray-800 rounded hover:bg-gray-700"
+                        className="px-3 py-1 bg-dark-secondary rounded hover:bg-secondary"
                       >
                         Précédent
                       </button>
@@ -329,7 +329,7 @@ const Backoffice = () => {
                     {postPagination.next_page !== null && (
                       <button
                         onClick={() => setCurrentPostPage(postPagination.next_page!)}
-                        className="px-3 py-1 bg-gray-800 rounded hover:bg-gray-700"
+                        className="px-3 py-1 bg-dark-secondary rounded hover:bg-secondary"
                       >
                         Suivant
                       </button>
@@ -344,7 +344,7 @@ const Backoffice = () => {
 
       {editingUser && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-gray-900 rounded-lg p-6 w-full max-w-md">
+          <div className="bg-black rounded-lg p-6 w-full max-w-md">
             <h3 className="text-xl font-semibold mb-4">Modifier l'utilisateur</h3>
             <form
               onSubmit={(e) => {
@@ -359,7 +359,7 @@ const Backoffice = () => {
                   type="text"
                   value={editingUser.username}
                   onChange={(e) => setEditingUser({ ...editingUser, username: e.target.value })}
-                  className="w-full bg-gray-800 rounded px-3 py-2"
+                  className="w-full bg-dark-secondary rounded px-3 py-2"
                 />
               </div>
               <div>
@@ -368,7 +368,7 @@ const Backoffice = () => {
                   type="text"
                   value={editingUser.name}
                   onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
-                  className="w-full bg-gray-800 rounded px-3 py-2"
+                  className="w-full bg-dark-secondary rounded px-3 py-2"
                 />
               </div>
               <div>
@@ -376,7 +376,7 @@ const Backoffice = () => {
                 <textarea
                   value={editingUser.bio || ''}
                   onChange={(e) => setEditingUser({ ...editingUser, bio: e.target.value })}
-                  className="w-full bg-gray-800 rounded px-3 py-2"
+                  className="w-full bg-dark-secondary rounded px-3 py-2"
                   rows={3}
                 />
               </div>
@@ -392,7 +392,7 @@ const Backoffice = () => {
                       banned: newBannedValue
                     });
                   }}
-                  className="w-full bg-gray-800 text-white rounded px-3 py-2"
+                  className="w-full bg-dark-secondary text-white rounded px-3 py-2"
                 >
                   <option value="false">Non</option>
                   <option value="true">Oui</option>
@@ -402,13 +402,13 @@ const Backoffice = () => {
                 <button
                   type="button"
                   onClick={() => setEditingUser(null)}
-                  className="px-4 py-2 bg-gray-700 rounded hover:bg-gray-600"
+                  className="px-4 py-2 bg-dark-secondary rounded hover:bg-secondary"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-500 rounded hover:bg-blue-600"
+                  className="px-4 py-2 bg-primary rounded hover:bg-dark-red"
                 >
                   Enregistrer
                 </button>

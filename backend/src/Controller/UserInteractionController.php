@@ -42,6 +42,17 @@ class UserInteractionController extends AbstractController
                 return new JsonResponse(['error' => 'Vous ne pouvez pas suivre car vous êtes banni'], 403);
             }
 
+            // Vérifier si l'utilisateur à suivre a banni le follower
+            $bannedInteraction = $entityManager->getRepository(UserInteraction::class)->findOneBy([
+                'user' => $userToFollow,
+                'secondUser' => $follower,
+                'isBanned' => true
+            ]);
+
+            if ($bannedInteraction) {
+                return new JsonResponse(['error' => 'Vous ne pouvez pas suivre cet utilisateur car il vous a banni'], 403);
+            }
+
             // Si l'utilisateur est en mode privé et qu'on veut le suivre
             if ($userToFollow->isPrivate() && !$isFollowing) {
                 // Vérifier si une demande en attente existe déjà

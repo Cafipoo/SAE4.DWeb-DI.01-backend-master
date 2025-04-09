@@ -206,6 +206,7 @@ class AuthService {
         if (user === null) {
             return null;
         }
+        console.log(user);
         const userData = JSON.parse(user);
         return userData.username;
     }

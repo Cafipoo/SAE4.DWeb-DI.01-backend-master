@@ -76,19 +76,11 @@ const ProfileHeader = ({ coverImage, avatar, displayName, username }: ProfileHea
   return (
     <>
       <div className="h-48 relative">
-        {localCover ? (
-          <img 
-            src={`http://localhost:8080/uploads/covers/${localCover}`}
-            alt="Cover" 
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <img 
-            src="./assets/images/default-cover.webp"
-            alt="Cover" 
-            className="w-full h-full object-cover"
-          />
-        )}
+        <div 
+          className="w-full h-full bg-bg flex items-center justify-center"
+        >
+          <span className="text-white text-xl font-semibold">Banner</span>
+        </div>
       </div>
       <div className="px-4">
         <div className="relative -mt-16 mb-4">
