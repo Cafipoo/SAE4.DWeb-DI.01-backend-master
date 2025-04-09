@@ -44,6 +44,11 @@ class SecurityController extends AbstractController
                     'error' => 'Votre compte a été banni'
                 ], 403);
             }
+            if (!$user->isVerified()) {
+                return $this->json([
+                    'error' => 'Veuillez vérifier votre email avant de vous connecter'
+                ], 401);
+            }
             
             // NOTE: Currently not checking for email verification
             // If you want to enable this check, uncomment the following code
