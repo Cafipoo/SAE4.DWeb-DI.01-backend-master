@@ -18,6 +18,7 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use SymfonyCasts\Bundle\VerifyEmail\Exception\VerifyEmailExceptionInterface;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 class RegistrationController extends AbstractController
 {
@@ -82,14 +83,22 @@ class RegistrationController extends AbstractController
             try {
                 $this->emailVerifier->sendEmailConfirmation('app_verify_email', $user,
                 (new TemplatedEmail())
-                    ->from(new Address('mailer@example.com', 'AcmeMailBot'))
+                    ->from(new Address('noreply@yourdomain.com', 'Your App Name'))
                     ->to($user->getEmail())
-                    ->subject('Please Confirm your Email')
+                    ->subject('Veuillez confirmer votre email')
                     ->htmlTemplate('registration/confirmation_email.html.twig')
+                    ->context([
+                        'signedUrl' => $this->generateUrl('app_verify_email', ['id' => $user->getId()], UrlGeneratorInterface::ABSOLUTE_URL),
+                        'expiresAtMessageKey' => 'verify_email.expires_at',
+                        'expiresAtMessageData' => ['%count%' => 24]
+                    ])
                 );
             } catch (\Exception $emailException) {
                 // Log the email sending error but continue with registration
                 error_log('Failed to send verification email: ' . $emailException->getMessage());
+                return $this->json([
+                    'error' => 'Une erreur est survenue lors de l\'envoi de l\'email de vérification. ' . $emailException->getMessage()
+                ], 404);
             }
 
             return $this->json([
