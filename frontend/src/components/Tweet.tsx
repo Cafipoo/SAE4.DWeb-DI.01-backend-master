@@ -291,15 +291,9 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, onUnpin, showPin
               />
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  {name.username === author.username ? (
-                    <Link to={`/profile`} className="font-bold text-white hover:underline">
-                      {author.name}
-                    </Link>
-                  ) : (
                     <Link to={`/profile/${author.username}`} className="font-bold text-white hover:underline">
                       {author.name}
                     </Link>
-                  )}
                   <p className="text-gray-500"> @{author.username}</p>
                   <span className="text-gray-500">·</span>
                   <time className="text-gray-500">{new Date(currentPost.created_at).toLocaleDateString()}</time>
