@@ -37,8 +37,8 @@ export const NotificationPage: React.FC = () => {
                 return;
             }
             const response = await DataRequests.getNotification(id);
-            const notificationsArray = Array.isArray(response) ? response : response.notifications || [];
-            setNotifications(notificationsArray);
+            const notificationsArray = Array.isArray(response) ? response : (response as NotificationResponse).notifications || [];
+            setNotifications(notificationsArray as Notification[]);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Une erreur est survenue');
             setNotifications([]);

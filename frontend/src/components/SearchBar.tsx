@@ -29,7 +29,7 @@ const SearchBar = ({
     userId: null
   });
   const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
 
   // Mettre à jour la requête si initialQuery change
   useEffect(() => {

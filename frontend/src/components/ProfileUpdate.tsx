@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Button from "../ui/Button";
 import Input from "../ui/Input";
 import { DataRequests } from "../data/data-requests";

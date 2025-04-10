@@ -69,7 +69,8 @@ const Backoffice = () => {
         name: updatedUser.name,
         username: updatedUser.username,
         bio: updatedUser.bio === null ? null : String(updatedUser.bio),
-        banned: updatedUser.banned === true
+        banned: updatedUser.banned === true,
+        private: updatedUser.privateMode === true
       };
 
       console.log('Type de bio:', typeof userData.bio);

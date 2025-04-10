@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import Icon from '../ui/Icon';
 import Button from '../ui/Button';
 import { DataRequests, Post, PostInteraction } from '../data/data-requests';
@@ -38,10 +38,10 @@ interface TweetProps {
   onRetweet?: (postId: number, comment?: string) => void;
 }
 
-const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, onUnpin, showPinButton = false, onHashtagClick, onRetweet }: TweetProps) => {
+const Tweet = ({ post, onDelete, onEdit, onPin, showPinButton = false, onHashtagClick, onRetweet }: TweetProps) => {
   let name = localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")!) : null;
   const [isLiked, setIsLiked] = useState(false);
-  const [isFollowed, setIsFollowed] = useState(post.isFollowed || false);
+  const [, setIsFollowed] = useState(post.isFollowed || false);
   const [likesCount, setLikesCount] = useState(post.likes_count || 0);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -61,7 +61,6 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, onUnpin, showPin
   const [error, setError] = useState<string | null>(null);
   const [isRetweetModalOpen, setIsRetweetModalOpen] = useState(false);
   const [isRetweeting, setIsRetweeting] = useState(false);
-  const [isEditRetweetModalOpen, setIsEditRetweetModalOpen] = useState(false);
   
   useEffect(() => {
     if (name.id) {
@@ -231,7 +230,6 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, onUnpin, showPin
 
   const author = currentPost.author || defaultAuthor;
   const reposts = currentPost.reposts || 0;
-  const replies = currentPost.replies || 0;
 
   const processText = (text: string) => {
     const parts = text.split(/(\s+)/);
@@ -298,7 +296,7 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, onUnpin, showPin
               />
               )}
               <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex flex-wrap items-center gap-2 mb-1">
                     <Link to={`/profile/${author.username}`} className="font-bold text-white hover:underline">
                       {author.name}
                     </Link>
@@ -397,14 +395,14 @@ const Tweet = ({ post, onDelete, onFollowUpdate, onEdit, onPin, onUnpin, showPin
                                   {isVideo ? (
                                     <video
                                       src={`http://localhost:8080/uploads/posts/${mediaUrl}`}
-                                      className="w-full h-full object-cover rounded-lg"
+                                      className="max-w-48 max-h-48 object-cover rounded-lg"
                                       controls
                                     />
                                   ) : (
                                     <img
                                       src={`http://localhost:8080/uploads/posts/${mediaUrl}`}
                                       alt={`Media ${index + 1}`}
-                                      className="w-full h-full object-cover rounded-lg cursor-pointer"
+                                      className="max-w-48 max-h-48 object-cover rounded-lg cursor-pointer"
                                       onClick={() => openMediaViewer(index)}
                                     />
                                   )}

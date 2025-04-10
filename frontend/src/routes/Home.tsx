@@ -144,7 +144,7 @@ const Home = () => {
     const cleanup = setupAutoRefresh();
 
     // Écouter les changements de paramètres
-    const handleReloadingUpdate = (event: CustomEvent) => {
+    const handleReloadingUpdate = () => {
       if (cleanup) cleanup();
       setupAutoRefresh();
     };

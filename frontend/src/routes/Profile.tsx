@@ -54,20 +54,6 @@ const Profile = () => {
     });
   };
 
-  const handleBannedUpdate = (userId: number, isBanned: boolean) => {
-    setBannedUsers(prev => {
-      if (isBanned) {
-        return prev.filter(user => user.id !== userId);
-      } else {
-        const userToAdd = user;
-        if (userToAdd) {
-          return [...prev, userToAdd];
-        }
-        return prev;
-      }
-    });
-  };
-
   // Fonction pour gérer l'édition d'un tweet
   const handleEditTweet = useCallback((editedPost: Post) => {
     setPosts(prevPosts => 
@@ -238,7 +224,9 @@ const Profile = () => {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <Sidebar />
+      <div className="flex">
+          <Sidebar />
+      </div>
 
       <div className="md:ml-72 pb-16 md:pb-0">
         <ProfileHeader

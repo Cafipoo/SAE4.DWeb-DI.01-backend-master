@@ -46,6 +46,7 @@ export interface Post {
         created_at: string;
         media: string[];
         author: {
+            isFollowed: any;
             id: number;
             name: string;
             username: string;
@@ -118,7 +119,7 @@ export interface AdminPostsResponse {
 export interface SearchFilters {
     dateRange: string;
     contentType: string;
-    userId?: number;
+    userId: number | null;
 }
 
 export const DataRequests = {

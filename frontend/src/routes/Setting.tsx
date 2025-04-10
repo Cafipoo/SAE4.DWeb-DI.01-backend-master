@@ -51,8 +51,10 @@ const Setting = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-black">
-      <Sidebar />
+    <div className="flex justify-center md:gap-4 min-h-screen bg-black">
+      <div className="flex">
+          <Sidebar />
+      </div>
       <main className="flex-1 md:ml-72 max-w-[600px]">
         <div className="p-4">
           <h1 className="text-2xl font-bold text-white mb-6">Paramètres</h1>

@@ -1,5 +1,3 @@
-import { useState } from 'react';
-import { User } from '../data/data-requests';
 import Button from '../ui/Button';
 
 interface ProfileTabsProps {
@@ -8,7 +6,7 @@ interface ProfileTabsProps {
   onTabChange: (tab: 'posts' | 'banned') => void;
 }
 
-const ProfileTabs = ({ userId, activeTab, onTabChange }: ProfileTabsProps) => {
+const ProfileTabs = ({ activeTab, onTabChange }: ProfileTabsProps) => {
   return (
     <div className="border-b border-gray-800">
       <div className="flex">
