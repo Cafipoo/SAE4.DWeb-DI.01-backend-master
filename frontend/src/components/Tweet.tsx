@@ -435,18 +435,18 @@ const Tweet = ({ post, onDelete, onEdit, onPin, showPinButton = false, onHashtag
                             {currentPost.media.map((mediaUrl, index) => {
                               const isVideo = mediaUrl.match(/\.(mp4|webm|ogg)$/i);
                               return (
-                                <div key={index} className="relative aspect-square">
+                                <div key={index} className="relative">
                                   {isVideo ? (
                                     <video
                                       src={`http://localhost:8080/uploads/posts/${mediaUrl}`}
-                                      className="w-full h-full object-cover rounded-lg"
+                                      className="w-48 h-48 object-cover rounded-lg"
                                       controls
                                     />
                                   ) : (
                                     <img
                                       src={`http://localhost:8080/uploads/posts/${mediaUrl}`}
                                       alt={`Media ${index + 1}`}
-                                      className="w-full h-full object-cover rounded-lg cursor-pointer"
+                                      className="w-48 h-48 object-cover rounded-lg cursor-pointer"
                                       onClick={() => openMediaViewer(index)}
                                     />
                                   )}
@@ -584,7 +584,7 @@ const Tweet = ({ post, onDelete, onEdit, onPin, showPinButton = false, onHashtag
                 )}
 
                 {error && (
-                  <div className="mt-2 p-2 bg-red-500/10 border border-red-500/20 rounded text-red-500 text-sm">
+                  <div className="mt-2 p-2 bg-dark-red/10 border border-dark-red rounded text-primary text-sm">
                     {error}
                   </div>
                 )}
